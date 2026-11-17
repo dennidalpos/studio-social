@@ -211,7 +211,7 @@ async function generateForPlan() {
   if (!plan.enabled) return;
   const local = localDay(new Date());
   if (!plan.days.includes(local.weekday) || local.time < plan.time) return;
-  if (db.prepare('SELECT id FROM posts WHERE slot = ?').get(local.date)) return;
+  if (db.prepare('SELECT id FROM posts WHERE slot = ?').get(local.date) || (get('skipped_slots') ?? []).includes(local.date)) return;
   const id = addPost(plan.channel, '', 'generating', local.date, plan.mediaId ?? null);
   const account = accountFor(plan.channel);
   try {
@@ -288,7 +288,26 @@ async function readBody(req) {
   return data;
 }
 
+// Posts that are not being written or sent right now can be deleted from this copy of Studio Social.
+const deletable = ['draft', 'queued', 'failed', 'published', 'unknown', 'simulated'];
+// A deleted post of the recurring plan must not come back at the next check of the same day.
+function skipSlot(slot) {
+  if (slot) set('skipped_slots', [...new Set([...(get('skipped_slots') ?? []), slot])].slice(-60));
+}
+function deletePost(id) {
+  const post = getPost(id);
+  if (!post) throw new InputError('Post non trovato.');
+  if (!deletable.includes(post.status)) throw new InputError('Questo post è in lavorazione: riprova tra poco.');
+  skipSlot(post.slot);
+  db.prepare('DELETE FROM posts WHERE id = ?').run(id);
+}
+function clearDemoPosts() {
+  if (!service.demo) throw new InputError('Puoi svuotare i post solo in modalità demo.');
+  for (const post of db.prepare('SELECT id, status, slot FROM posts').all()) if (deletable.includes(post.status)) deletePost(post.id);
+}
+
 function updatePost(id, data) {
+  if (data.action === 'delete') return deletePost(id);
   const post = getPost(id);
   if (!post) throw new InputError('Post non trovato.');
   if (post.status === 'unknown' && data.action === 'verify') {
@@ -426,6 +445,8 @@ async function serve(req, res) {
       const input = { ...brief(data, true), language: data.language === 'en' ? 'en' : 'it' };
       const media = selectMedia(data.mediaId, input.channel);
       addPost(input.channel, await service.generate({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), web: data.web === true, recent: recentPosts(input.channel) }), 'draft', null, media?.id ?? null);
+    } else if (path === '/api/clear-demo') {
+      clearDemoPosts();
     } else if (path === '/api/new') {
       const channel = channelFrom(data.channel);
       const media = selectMedia(data.mediaId, channel);

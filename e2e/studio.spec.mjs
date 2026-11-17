@@ -268,6 +268,47 @@ test('improves the plan fields from generic words and offers the web toggle', as
   await expect(page.locator('#notice')).toHaveText('Piano salvato.');
 });
 
+test('deletes a draft after confirming, from the card and from the editor', async ({ page }) => {
+  const first = await createDraft(page, 'Bozza da eliminare dalla card');
+  page.once('dialog', dialog => { expect(dialog.message()).toContain('Eliminare questo post?'); void dialog.dismiss(); });
+  await first.getByRole('button', { name: 'Elimina' }).click();
+  await expect(first).toBeVisible();
+  page.once('dialog', dialog => void dialog.accept());
+  await first.getByRole('button', { name: 'Elimina' }).click();
+  await expect(page.locator('#notice')).toHaveText('Post eliminato.');
+  await expect(page.locator('#posts article').filter({ hasText: 'Bozza da eliminare dalla card' })).toHaveCount(0);
+
+  const second = await createDraft(page, 'Bozza da eliminare dall’editor');
+  await second.getByRole('button', { name: 'Modifica' }).click();
+  page.once('dialog', dialog => void dialog.accept());
+  await page.locator('#delete-post').click();
+  await expect(page.locator('#editor')).not.toBeVisible();
+  await expect(page.locator('#posts article').filter({ hasText: 'Bozza da eliminare dall’editor' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Scrivi un post' }).click();
+  await expect(page.locator('#delete-post')).toBeHidden();
+  await page.locator('#close-editor').click();
+});
+
+test('clears all the test posts in demo mode', async ({ page }) => {
+  await createDraft(page, 'Prova da svuotare');
+  await expect(page.locator('#clear-demo')).toBeVisible();
+  page.once('dialog', dialog => void dialog.accept());
+  await page.locator('#clear-demo').click();
+  await expect(page.locator('#notice')).toHaveText('Post di prova eliminati.');
+  await expect(page.locator('#posts .post-item')).toHaveCount(0);
+  await expect(page.locator('#clear-demo')).toBeHidden();
+});
+
+test('the menu marks one place only, also when plan and posts sit side by side', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await expect(page.locator('nav a[aria-current]')).toHaveCount(1);
+  await expect(page.locator('nav a[aria-current]')).toHaveText('Piano');
+  await page.locator('nav a[href="#post"]').click();
+  await expect(page.locator('nav a[aria-current]')).toHaveText('Post');
+  await expect(page.locator('nav a[aria-current]')).toHaveCount(1);
+});
+
 test('simple: the draft and the chosen view are remembered', async ({ page }) => {
   await page.getByLabel('Testo del post').fill('Bozza da ritrovare');
   await page.reload();

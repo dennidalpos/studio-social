@@ -116,7 +116,7 @@
         </form>
       </section>
       <section class="card" id="post" aria-labelledby="posts-heading">
-        <div class="section-heading"><h2 id="posts-heading">Post</h2><button class="secondary small" type="button" id="new-post">Scrivi un post</button></div>
+        <div class="section-heading"><h2 id="posts-heading">Post</h2><div class="actions"><button class="secondary small danger" type="button" id="clear-demo" hidden>Svuota i post di prova</button><button class="secondary small" type="button" id="new-post">Scrivi un post</button></div></div>
         <template id="empty"><div class="empty"><span aria-hidden="true">✎</span><h3>Il tuo primo post parte da qui</h3><p>Scegli un tema e genera una bozza, oppure scrivi il post direttamente.</p></div></template>
         <div id="posts"></div>
       </section>
@@ -229,7 +229,7 @@
       </div>
       <label id="editor-date">Data e ora (fuso del dispositivo)<input name="due" type="datetime-local"></label>
       <p id="editor-notice" role="status" hidden></p>
-      <div class="actions"><button type="submit">Salva bozza</button><button class="secondary" type="button" id="preview-editor" aria-haspopup="dialog">Anteprima</button><button class="secondary" type="button" id="queue">Programma</button><button class="secondary" type="button" id="send">Pubblica ora</button></div>
+      <div class="actions"><button type="submit">Salva bozza</button><button class="secondary" type="button" id="preview-editor" aria-haspopup="dialog">Anteprima</button><button class="secondary" type="button" id="queue">Programma</button><button class="secondary" type="button" id="send">Pubblica ora</button><button class="secondary danger" type="button" id="delete-post" hidden>Elimina</button></div>
     </form>
   </dialog>
   <dialog id="post-preview" aria-labelledby="post-preview-title">

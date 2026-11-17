@@ -77,6 +77,23 @@ function displayAccount(channel, account) {
   $(`${channel}-name`).textContent = state.demo ? (account.configured ? 'Credenziali salvate · demo' : 'Demo') : account.ready ? `${account.name}${expiry}` : setupNeeded ? 'Configurazione da completare' : 'Pronto da collegare';
 }
 
+// Posts that are not being written or sent right now can be deleted (same list as the server).
+const deletable = ['draft', 'queued', 'failed', 'published', 'unknown', 'simulated'];
+const deleteQuestions = {
+  queued: 'Eliminare questo post programmato? Non verrà pubblicato e non si può annullare.',
+  published: 'Eliminare la copia di questo post da Studio Social? Sul social resta: va rimosso lì a mano.',
+  unknown: 'Eliminare la copia di questo post da Studio Social? Sul social resta: va rimosso lì a mano.',
+};
+
+function removePost(trigger, post, target = $('notice'), done) {
+  if (!window.confirm(t(deleteQuestions[post.status] ?? 'Eliminare questo post? Non si può annullare.'))) return;
+  void change(trigger, async () => {
+    render(await api(`posts/${post.id}`, { action: 'delete' }));
+    done?.();
+    message('Post eliminato.', false, $('notice'));
+  }, target);
+}
+
 function postCard(post) {
   const article = node('article', 'post-item');
   const header = node('header', '');
@@ -103,6 +120,11 @@ function postCard(post) {
   preview.setAttribute('aria-haspopup', 'dialog');
   actions.append(preview);
   if (['draft', 'queued', 'failed'].includes(post.status)) actions.append(button('Modifica', () => openEditor(post)));
+  if (deletable.includes(post.status)) {
+    const remove = button('Elimina', event => removePost(event.currentTarget, post));
+    remove.classList.add('danger');
+    actions.append(remove);
+  }
   article.append(actions);
   if (post.status === 'unknown') {
     const actions = node('div', 'actions');
@@ -159,6 +181,7 @@ function render(result, updatePlan = false) {
     for (const day of planForm.querySelectorAll('[name=day]')) day.checked = result.plan.days.includes(Number(day.value));
   }
   updateWebControls();
+  $('clear-demo').hidden = !result.demo || !result.posts.some(post => deletable.includes(post.status));
   const environment = $('environment');
   environment.textContent = result.demo ? 'Demo · invii simulati' : 'Reale · pubblica davvero';
   environment.classList.toggle('live', !result.demo);
@@ -353,6 +376,7 @@ function openEditor(post) {
   $('editor-title').textContent = post ? 'Modifica post' : 'Scrivi un post';
   $('editor-channel').hidden = Boolean(post);
   for (const id of ['editor-date', 'queue', 'send']) $(id).hidden = !post || post.channel === 'tiktok';
+  $('delete-post').hidden = !post;
   message('', false, $('editor-notice'));
   editor.showModal();
 }
@@ -399,6 +423,13 @@ $('improve').addEventListener('click', event => {
   });
 });
 $('new-post').addEventListener('click', () => openEditor());
+$('delete-post').addEventListener('click', event => {
+  if (editing) removePost(event.currentTarget, editing, $('editor-notice'), () => editor.close());
+});
+$('clear-demo').addEventListener('click', event => {
+  if (!window.confirm(t('Eliminare tutti i post di prova? Non si può annullare.'))) return;
+  void change(event.currentTarget, async () => { render(await api('clear-demo', {})); message('Post di prova eliminati.'); });
+});
 $('close-editor').addEventListener('click', () => editor.close());
 $('preview-editor').addEventListener('click', () => openPostPreview({
   channel: selectedChannel('editor'), content: form.elements.content.value.trim(),
@@ -623,6 +654,7 @@ function syncBar() { document.documentElement.style.setProperty('--bar-h', `${ba
 new ResizeObserver(syncBar).observe(bar);
 syncBar();
 
+let chosenSection = null;
 function syncScroll() {
   toTop.hidden = window.scrollY < 600;
   const line = bar.offsetHeight + window.innerHeight * .25;
@@ -630,10 +662,14 @@ function syncScroll() {
   let current = null;
   for (const section of sections) if (section.element.getBoundingClientRect().top <= line) current = section;
   if (nearBottom) current = sections[sections.length - 1];
-  // Sections side by side (wide layout) are in view together: mark every one that starts at the same height.
+  // Sections side by side (wide layout) are in view together but the menu marks one place only:
+  // the one the person chose from the menu, otherwise the first of the pair.
   const alongside = (section) => current && Math.abs(section.element.getBoundingClientRect().top - current.element.getBoundingClientRect().top) < 8;
+  const group = current ? sections.filter(alongside) : [];
+  if (group.length === 1) chosenSection = null;
+  const marked = group.find(section => section.id === chosenSection) ?? group[0];
   for (const section of sections) {
-    if (section === current || alongside(section)) section.link.setAttribute('aria-current', 'location');
+    if (section === marked) section.link.setAttribute('aria-current', 'location');
     else section.link.removeAttribute('aria-current');
   }
 }
@@ -648,6 +684,8 @@ for (const link of document.querySelectorAll('nav a, a.mode-pill')) {
   link.addEventListener('click', event => {
     event.preventDefault();
     const id = link.getAttribute('href').slice(1);
+    chosenSection = id;
+    syncScroll();
     $(id).scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
     window.history.replaceState(null, '', `#${id}`);
   });

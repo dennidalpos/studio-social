@@ -16,6 +16,11 @@
 - MIT `LICENSE`, `CREDITS.md` (fonts and dev tooling with their licenses), `license` field in `package.json`.
 - README rewritten in English with real screenshots (`docs/images/`), Mermaid diagrams, `run.ps1` documentation, tests and limits.
 
+- Delete posts: **Elimina** on every card and in the editor (with a confirmation that says what happens; for published posts only the local copy goes, the post stays on the social), and **Svuota i post di prova** in demo mode. A deleted post of the recurring plan does not come back the same day.
+
+### Fixed
+- The top bar marked both Piano and Post when they sit side by side; now only one place is marked (the one chosen from the menu, otherwise Piano).
+
 ### Changed
 - "Modalità prova" is now "Demo · invii simulati" (and "Reale · pubblica davvero"); the mode pill links to the setting. The plan's publishing option is called "Pubblicazione" and the environment setting "Ambiente".
 - Account guides and AI providers open one at a time.

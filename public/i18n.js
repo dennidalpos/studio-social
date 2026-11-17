@@ -223,6 +223,13 @@
     ['Testo scritto dall’AI. Controllalo e modificalo prima di pubblicare.', 'Text written by the AI. Check and edit it before publishing.'],
     ['Campi migliorati. Controllali e salva il piano.', 'Fields improved. Check them and save the plan.'], ['Scrivi almeno una parola in uno dei campi.', 'Write at least one word in one of the fields.'],
     [' non ha restituito campi utilizzabili. Riprova.', ' did not return usable fields. Try again.'],
+    // Deleting posts
+    ['Elimina', 'Delete'], ['Svuota i post di prova', 'Clear the test posts'], ['Post eliminato.', 'Post deleted.'], ['Post di prova eliminati.', 'Test posts deleted.'],
+    ['Eliminare questo post? Non si può annullare.', 'Delete this post? This cannot be undone.'],
+    ['Eliminare questo post programmato? Non verrà pubblicato e non si può annullare.', 'Delete this scheduled post? It will not be published and this cannot be undone.'],
+    ['Eliminare la copia di questo post da Studio Social? Sul social resta: va rimosso lì a mano.', 'Delete the copy of this post from Studio Social? It stays on the social: remove it there by hand.'],
+    ['Eliminare tutti i post di prova? Non si può annullare.', 'Delete all the test posts? This cannot be undone.'],
+    ['Questo post è in lavorazione: riprova tra poco.', 'This post is being processed: try again shortly.'], ['Puoi svuotare i post solo in modalità demo.', 'You can only clear the posts in demo mode.'],
     // Fallbacks
     ['Collegamento ', 'Connection '],
   ].filter(([it, en]) => it !== en).sort((a, b) => b[0].length - a[0].length);
