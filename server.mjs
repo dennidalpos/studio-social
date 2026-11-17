@@ -299,6 +299,7 @@ function redirect(res, result) {
 
 const files = {
   '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'],
+  '/favicon.svg': ['favicon.svg', 'image/svg+xml'], '/favicon.ico': ['favicon.svg', 'image/svg+xml'],
 };
 
 async function serve(req, res) {

@@ -23,7 +23,7 @@ test.beforeEach(async ({ page }) => {
 test('starts in demo mode without console errors', async ({ page }) => {
   const errors = [];
   page.on('console', (message) => {
-    if (message.type() === 'error' && !message.text().includes('favicon')) errors.push(message.text());
+    if (message.type() === 'error') errors.push(message.text());
   });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.reload();
