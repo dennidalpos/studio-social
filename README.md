@@ -2,7 +2,13 @@
 
 App web locale per una persona. Genera post di testo in italiano da un brief, salva bozze modificabili e pubblica su un profilo LinkedIn, una Pagina Facebook o un account Instagram professionale. Per TikTok prepara ed esporta i post. Il piano ricorrente usa il fuso `Europe/Rome`. Le date dei singoli post usano il fuso mostrato dal dispositivo.
 
-## Avvio in modalità prova
+## Modalità semplice e avanzata
+
+All’apertura Studio Social è in **modalità semplice**, pensata per chi ha solo il login personale dei social: nessun account da collegare, nessuna chiave, nessuna programmazione. Scegli dove pubblichi, scrivi il testo e controlla l’anteprima con il conteggio dei caratteri per quel social. **Copia e apri** copia il testo e apre il social nella tua sessione già autenticata: su LinkedIn il post arriva già scritto, su Facebook, Instagram e TikTok incolli con Ctrl+V. Aggiungi foto o video direttamente sul social e premi Pubblica: la pubblicazione resta un tuo gesto. La bozza e la scelta del social restano salvate in questo browser.
+
+Il pulsante in alto a destra passa alla **modalità avanzata**, per profili e Pagine business con API: piano ricorrente, programmazione, pubblicazione automatica e collegamento degli account. La scelta resta salvata nel browser.
+
+## Avvio in modalità prova (avanzata)
 
 Con [Node.js](https://nodejs.org/) 24 o successivo, apri il terminale nella cartella estratta ed esegui:
 

@@ -12,14 +12,21 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
 </head>
-<body>
+<body data-view="simple">
   <header class="bar">
     <a class="brand" href="/" id="home" aria-label="Studio Social, torna all’inizio"><span class="monogram" aria-hidden="true">S</span> Studio Social</a>
-    <nav aria-label="Navigazione"><a href="#piano">Piano</a><a href="#post">Post</a><a href="#account">Account</a></nav>
-    <a class="pill mode-pill" id="environment" href="#account">Caricamento</a>
+    <nav class="advanced-only" aria-label="Navigazione"><a href="#piano">Piano</a><a href="#post">Post</a><a href="#account">Account</a></nav>
+    <div class="bar-tools">
+      <a class="pill mode-pill advanced-only" id="environment" href="#account">Caricamento</a>
+      <button type="button" class="secondary small" id="view-toggle"><span class="long">Modalità </span><span id="view-name">avanzata</span></button>
+    </div>
   </header>
   <main>
-    <section class="intro" aria-labelledby="title">
+    <section class="intro simple-only" aria-labelledby="simple-title">
+      <div><h1 id="simple-title">Scrivi, controlla<br>e pubblica<span>.</span></h1>
+      <p>Nessun account da collegare: scrivi il post, guarda l’anteprima e aprilo sul social già compilato, con il tuo login di sempre.</p></div>
+    </section>
+    <section class="intro advanced-only" aria-labelledby="title">
       <div><h1 id="title">Calendario<br>editoriale<span>.</span></h1>
       <p>Scrivi, programma e pubblica su LinkedIn, Facebook e Instagram. Prepara i post per TikTok.</p></div>
       <div class="metrics" aria-label="Riepilogo">
@@ -29,7 +36,40 @@
       </div>
     </section>
     <p id="notice" role="status" hidden></p>
-    <div class="workspace">
+    <div class="workspace simple-only" id="simple">
+      <section class="card" aria-labelledby="simple-heading">
+        <div class="section-heading"><h2 id="simple-heading">Il tuo post</h2></div>
+        <form id="simple-form" autocomplete="off">
+          <fieldset class="channel-choice"><legend>Dove lo pubblichi?</legend><div class="days">
+            <label><input type="radio" name="simple-channel" value="linkedin" checked><span>LinkedIn</span></label>
+            <label><input type="radio" name="simple-channel" value="facebook"><span>Facebook</span></label>
+            <label><input type="radio" name="simple-channel" value="instagram"><span>Instagram</span></label>
+            <label><input type="radio" name="simple-channel" value="tiktok"><span>TikTok</span></label>
+          </div></fieldset>
+          <label>Testo del post<textarea id="simple-text" rows="10" maxlength="6000" placeholder="Scrivi qui il tuo post" aria-describedby="simple-count"></textarea></label>
+          <p class="counter" id="simple-count" aria-live="polite"></p>
+          <div class="actions">
+            <button type="submit" id="simple-open" disabled>Copia e apri LinkedIn</button>
+            <button class="secondary" type="button" id="simple-copy" disabled>Copia solo il testo</button>
+            <button class="secondary" type="button" id="simple-clear" disabled>Svuota</button>
+          </div>
+          <p id="simple-notice" role="status" hidden></p>
+        </form>
+      </section>
+      <section class="card" aria-labelledby="simple-preview-heading">
+        <div class="section-heading"><h2 id="simple-preview-heading">Anteprima</h2></div>
+        <article class="preview-post">
+          <header class="preview-post-header">
+            <span class="channel" id="simple-mark" aria-hidden="true"></span>
+            <div><h3 id="simple-name"></h3><p class="meta">Così apparirà il testo</p></div>
+          </header>
+          <p id="simple-preview"></p>
+        </article>
+        <h3 class="steps-title">Come si pubblica</h3>
+        <ol class="simple-steps" id="simple-steps"></ol>
+      </section>
+    </div>
+    <div class="workspace advanced-only">
       <section class="card" id="piano" aria-labelledby="plan-heading">
         <div class="section-heading"><h2 id="plan-heading">Piano editoriale</h2><span class="pill" id="plan-state">In pausa</span></div>
         <form id="plan" autocomplete="off">
@@ -70,7 +110,7 @@
         <div id="posts"></div>
       </section>
     </div>
-    <section class="card" id="account" aria-labelledby="account-heading">
+    <section class="card advanced-only" id="account" aria-labelledby="account-heading">
       <div class="section-heading"><h2 id="account-heading">Account</h2></div>
       <form id="studio-mode" class="mode-form">
         <label>Ambiente di Studio Social<select name="mode" aria-describedby="mode-help"><option value="demo">Demo · dati e invii simulati</option><option value="live">Reale · account e pubblicazioni reali</option></select></label>

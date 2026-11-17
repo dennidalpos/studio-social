@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Simple view (default): write a post, see the preview with the per-social character count, then copy it and open the social in the user's own logged-in browser (LinkedIn opens with the text prefilled). No accounts, keys or scheduling. The draft and the choice are remembered in the browser; a button switches to the advanced view (plan, scheduling, API publishing, accounts).
+- Sticky top bar with the current section marked, back-to-top button, and page notices that stay visible under the bar.
+- `run.ps1`: installs and starts the app, with an arrow-key menu to start in demo or real mode, stop running instances or pick another port.
+
+### Changed
+- "Modalità prova" is now "Demo · invii simulati" (and "Reale · pubblica davvero"); the mode pill links to the setting. The plan's publishing option is called "Pubblicazione" and the environment setting "Ambiente".
+- Account guides and AI providers open one at a time.
+- Session cookie is named per port (`studio_session_<port>`).
+
 ## 0.5.0
 
 ### Security

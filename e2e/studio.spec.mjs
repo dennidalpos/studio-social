@@ -19,10 +19,13 @@ async function createDraft(page, topic) {
   return page.locator('#posts article').filter({ hasText: topic }).first();
 }
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
+  // Tests run in the advanced view unless their title starts with "simple:"; the choice is only seeded once.
+  await page.addInitScript((view) => { if (!localStorage.getItem('studio-view')) localStorage.setItem('studio-view', view); }, testInfo.title.startsWith('simple:') ? 'simple' : 'advanced');
   await page.goto(`/?key=${accessKey}`); // logs in (cookie) and redirects to /
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.locator('#environment')).not.toHaveText('Caricamento');
+  await expect(page.locator('body')).toHaveAttribute('data-view', /simple|advanced/);
+  if (!testInfo.title.startsWith('simple:')) await expect(page.locator('#environment')).not.toHaveText('Caricamento');
 });
 
 test('starts in demo mode without console errors', async ({ page }) => {
@@ -192,6 +195,55 @@ test('errors are announced as alerts and stay visible under the bar', async ({ p
   await expect(page.locator('#config-notice')).toHaveText('Questa modalità è già attiva.');
 });
 
+test('simple: opens without accounts, plan or mode pill', async ({ page }) => {
+  await expect(page.getByRole('heading', { name: /Scrivi, controlla/ })).toBeVisible();
+  await expect(page.locator('#piano')).toBeHidden();
+  await expect(page.locator('#account')).toBeHidden();
+  await expect(page.locator('#environment')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Copia e apri LinkedIn' })).toBeDisabled();
+});
+
+test('simple: previews the text and counts characters per social', async ({ page }) => {
+  await page.getByLabel('Testo del post').fill('Ciao mondo');
+  await expect(page.locator('#simple-preview')).toHaveText('Ciao mondo');
+  await expect(page.locator('#simple-count')).toHaveText('10 / 3000 caratteri');
+  await page.locator('#simple-form').getByText('Instagram', { exact: true }).click();
+  await expect(page.locator('#simple-count')).toHaveText('10 / 2200 caratteri');
+  await expect(page.getByRole('button', { name: 'Copia e apri Instagram' })).toBeEnabled();
+  await page.getByLabel('Testo del post').fill('x'.repeat(2250));
+  await expect(page.locator('#simple-count')).toContainText('50 caratteri in più');
+  await expect(page.getByRole('button', { name: 'Copia e apri Instagram' })).toBeDisabled();
+});
+
+test('simple: copies the text and opens LinkedIn with the post already written', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await context.route('https://www.linkedin.com/**', (route) => route.fulfill({ contentType: 'text/html', body: 'ok' }));
+  const text = 'Primo post: caffè & idee #test';
+  await page.getByLabel('Testo del post').fill(text);
+  const popup = context.waitForEvent('page');
+  await page.getByRole('button', { name: 'Copia e apri LinkedIn' }).click();
+  const opened = await popup;
+  const url = new URL(opened.url());
+  expect(url.origin + url.pathname).toBe('https://www.linkedin.com/feed/');
+  expect(url.searchParams.get('shareActive')).toBe('true');
+  expect(url.searchParams.get('text')).toBe(text);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(text);
+  await expect(page.locator('#simple-notice')).toContainText('Testo copiato');
+});
+
+test('simple: the draft and the chosen view are remembered', async ({ page }) => {
+  await page.getByLabel('Testo del post').fill('Bozza da ritrovare');
+  await page.reload();
+  await expect(page.getByLabel('Testo del post')).toHaveValue('Bozza da ritrovare');
+  await page.getByRole('button', { name: 'Passa alla modalità avanzata' }).click();
+  await expect(page.getByRole('heading', { name: /Calendario/ })).toBeVisible();
+  await expect(page.locator('#simple')).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: /Calendario/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Passa alla modalità semplice' }).click();
+  await expect(page.getByRole('heading', { name: /Scrivi, controlla/ })).toBeVisible();
+});
+
 test('account guides open one at a time', async ({ page }) => {
   await page.getByRole('link', { name: 'Account' }).click();
   await page.getByText('Configura LinkedIn').click();
@@ -247,10 +299,24 @@ test.describe('on a phone', () => {
     await page.getByRole('link', { name: 'Account' }).click();
     await expect(page.locator('#account')).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBe(0);
-    const short = await page.evaluate(() => [...document.querySelectorAll('button, select, summary, input:not([type=hidden]):not([type=checkbox])')]
+    const short = await page.evaluate(() => [...document.querySelectorAll('button, select, summary, input:not([type=hidden]):not([type=checkbox]):not([type=radio])')]
       .filter((element) => { const box = element.getBoundingClientRect(); return box.width && box.height && box.height < 43.5; })
       .map((element) => element.textContent.trim().slice(0, 20) || element.name));
     expect(short).toEqual([]);
+  });
+});
+
+test.describe('simple view on a phone', () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test('simple: fits the screen and has 44px targets', async ({ page }) => {
+    await page.getByLabel('Testo del post').fill('Prova su telefono');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBe(0);
+    const short = await page.evaluate(() => [...document.querySelectorAll('button, select, summary, textarea, input:not([type=hidden]):not([type=checkbox]):not([type=radio])')]
+      .filter((element) => { const box = element.getBoundingClientRect(); return box.width && box.height && box.height < 43.5; })
+      .map((element) => element.textContent.trim().slice(0, 20) || element.name));
+    expect(short).toEqual([]);
+    await expect(page.getByRole('button', { name: 'Passa alla modalità avanzata' })).toBeVisible();
   });
 });
 

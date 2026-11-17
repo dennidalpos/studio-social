@@ -623,9 +623,142 @@ for (const link of document.querySelectorAll('nav a, a.mode-pill')) {
 }
 // A reload or Back does not restore a scroll position in the middle of the page; only an explicit #section does.
 window.history.scrollRestoration = 'manual';
-if (window.location.hash && $(window.location.hash.slice(1))) $(window.location.hash.slice(1)).scrollIntoView();
-else window.scrollTo(0, 0);
-syncScroll();
+function startPosition() {
+  const target = window.location.hash && $(window.location.hash.slice(1));
+  if (target) target.scrollIntoView();
+  else window.scrollTo(0, 0);
+  syncScroll();
+}
+
+// Simple view: write, preview, copy and open the social's own composer. No accounts or API keys involved:
+// the post is published by the person, with the login they already use in the browser.
+const socials = {
+  linkedin: {
+    name: 'LinkedIn', mark: 'in', limit: 3000, site: 'https://www.linkedin.com/feed/',
+    compose: (text) => `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`,
+    steps: ['Il testo viene copiato negli appunti.', 'Si apre LinkedIn con il post già scritto. Se il testo non compare, incollalo con Ctrl+V.', 'Aggiungi foto o video, se vuoi, e premi Pubblica.'],
+  },
+  facebook: {
+    name: 'Facebook', mark: 'f', limit: 5000, site: 'https://www.facebook.com/',
+    steps: ['Il testo viene copiato negli appunti.', 'Si apre Facebook: clicca su «A cosa stai pensando?» e incolla con Ctrl+V.', 'Aggiungi foto o video, se vuoi, e premi Pubblica.'],
+  },
+  instagram: {
+    name: 'Instagram', mark: 'IG', limit: 2200, site: 'https://www.instagram.com/',
+    steps: ['Il testo viene copiato come didascalia.', 'Si apre Instagram: usa «Crea», scegli foto o video e incolla la didascalia. Da telefono, apri l’app e incolla lì.', 'Controlla l’anteprima e premi Condividi.'],
+  },
+  tiktok: {
+    name: 'TikTok', mark: 'TT', limit: 2200, site: 'https://www.tiktok.com/upload',
+    steps: ['Il testo viene copiato come didascalia.', 'Si apre la pagina di caricamento di TikTok: scegli il video e incolla la didascalia.', 'Controlla l’anteprima e pubblica.'],
+  },
+};
+const simpleForm = $('simple-form');
+const simpleText = $('simple-text');
+const simpleNotice = $('simple-notice');
+const draftKey = 'studio-simple-draft';
+const selectedSocial = () => simpleForm.elements['simple-channel'].value;
+
+function simpleMessage(text, error = false, link) {
+  simpleNotice.hidden = !text;
+  simpleNotice.classList.toggle('error', error);
+  simpleNotice.setAttribute('role', error ? 'alert' : 'status');
+  simpleNotice.replaceChildren(text);
+  if (link) {
+    const anchor = node('a', '', link.label);
+    anchor.href = link.href;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    simpleNotice.append(' ', anchor);
+  }
+}
+
+function renderSimple() {
+  const social = socials[selectedSocial()];
+  const text = simpleText.value.trim();
+  const length = [...text].length;
+  const over = length - social.limit;
+  const mark = $('simple-mark');
+  mark.className = `channel ${selectedSocial()}`;
+  mark.textContent = social.mark;
+  $('simple-name').textContent = social.name;
+  $('simple-preview').textContent = text || 'L’anteprima compare qui mentre scrivi.';
+  $('simple-preview').classList.toggle('empty-copy', !text);
+  const count = $('simple-count');
+  count.textContent = over > 0 ? `${over} caratteri in più: accorcia il testo per ${social.name} (massimo ${social.limit}).` : `${length} / ${social.limit} caratteri`;
+  count.classList.toggle('error', over > 0);
+  $('simple-open').textContent = `Copia e apri ${social.name}`;
+  $('simple-steps').replaceChildren(...social.steps.map(step => node('li', '', step)));
+  const unusable = !text || over > 0;
+  $('simple-open').disabled = unusable;
+  $('simple-copy').disabled = unusable;
+  $('simple-clear').disabled = !simpleText.value;
+  try { localStorage.setItem(draftKey, JSON.stringify({ channel: selectedSocial(), text: simpleText.value })); } catch { /* storage unavailable: the text just is not remembered */ }
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const area = node('textarea', '');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.cssText = 'position:fixed;opacity:0;top:0';
+    document.body.append(area);
+    area.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch { /* not allowed */ }
+    area.remove();
+    return copied;
+  }
+}
+
+async function copyAndOpen(open) {
+  const key = selectedSocial();
+  const social = socials[key];
+  const text = simpleText.value.trim();
+  const copied = await copyToClipboard(text);
+  let address = social.site;
+  let prefilled = false;
+  if (open && social.compose) {
+    const composer = social.compose(text);
+    if (composer.length <= 1900) { address = composer; prefilled = true; }
+  }
+  const link = open ? { label: `Apri ${social.name}`, href: address } : undefined;
+  if (open) window.open(address, '_blank', 'noopener,noreferrer');
+  if (!copied) return simpleMessage('Non riesco a copiare in automatico. Seleziona il testo nel riquadro e copialo con Ctrl+C.', true, link);
+  if (!open) return simpleMessage('Testo copiato. Incollalo dove vuoi con Ctrl+V.');
+  simpleMessage(prefilled ? `Testo copiato. ${social.name} si apre con il post già scritto: se non lo vedi, incolla con Ctrl+V.` : `Testo copiato. Incollalo su ${social.name} con Ctrl+V. Se la scheda non si è aperta,`, false, link);
+}
+
+simpleForm.addEventListener('submit', event => { event.preventDefault(); void copyAndOpen(true); });
+$('simple-copy').addEventListener('click', () => void copyAndOpen(false));
+$('simple-clear').addEventListener('click', () => { simpleText.value = ''; simpleMessage(''); renderSimple(); simpleText.focus(); });
+simpleText.addEventListener('input', () => { simpleMessage(''); renderSimple(); });
+simpleForm.addEventListener('change', event => { if (event.target.name === 'simple-channel') { simpleMessage(''); renderSimple(); } });
+try {
+  const saved = JSON.parse(localStorage.getItem(draftKey) ?? 'null');
+  if (saved && typeof saved.text === 'string' && Object.hasOwn(socials, saved.channel)) {
+    simpleText.value = saved.text.slice(0, 6000);
+    simpleForm.elements['simple-channel'].value = saved.channel;
+  }
+} catch { /* nothing saved or storage unavailable */ }
+renderSimple();
+
+// Simple (default) or advanced view; the choice is remembered in this browser.
+const viewToggle = $('view-toggle');
+function setView(view, remember = true) {
+  document.body.dataset.view = view;
+  $('view-name').textContent = view === 'simple' ? 'avanzata' : 'semplice';
+  viewToggle.setAttribute('aria-label', view === 'simple' ? 'Passa alla modalità avanzata' : 'Passa alla modalità semplice');
+  if (remember) { try { localStorage.setItem('studio-view', view); } catch { /* not remembered */ } }
+  syncBar();
+  syncScroll();
+}
+viewToggle.addEventListener('click', () => { setView(document.body.dataset.view === 'simple' ? 'advanced' : 'simple'); window.scrollTo(0, 0); });
+let storedView = null;
+try { storedView = localStorage.getItem('studio-view'); } catch { /* default view */ }
+setView(storedView === 'advanced' ? 'advanced' : 'simple', false);
+startPosition(); // after the view is set, so an explicit #section is visible when it is scrolled to
 
 // A refresh skipped while a field had focus is applied as soon as the field loses it.
 $('posts').addEventListener('focusout', () => setTimeout(() => { if (state) render(state); }, 0));
