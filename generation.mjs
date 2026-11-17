@@ -27,8 +27,25 @@ function compatibleUrl(value) {
   return url.href;
 }
 
+// Writes the real cause of a failed provider call to the server log (never the key, the headers or the body).
+function causeOf(error) {
+  const cause = error?.cause;
+  const parts = [error?.name, error?.message, cause?.code, cause?.message].filter((part, index, all) => typeof part === 'string' && part && all.indexOf(part) === index);
+  return parts.join(' · ').replace(/[\r\n]+/g, ' ').slice(0, 300) || 'unknown error';
+}
+
 export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
   const value = (name, fallback = '') => env[name]?.trim() || fallback;
+  // Optional wait for the AI answer, in minutes (slow models). Empty or invalid: the built-in defaults apply.
+  const waitMinutes = Number(value('AI_TIMEOUT_MINUTES').replace(',', '.'));
+  const customWait = Number.isFinite(waitMinutes) && waitMinutes > 0 ? Math.round(Math.min(waitMinutes, 60) * 60_000) : 0;
+  function unanswered(config, action, url, error) {
+    let host = 'unknown host';
+    try { host = new URL(url).host; } catch { /* keep the placeholder */ }
+    console.error(`[AI] ${config.label}: ${action} on ${host} failed: ${causeOf(error)}`);
+    if (error?.name === 'TimeoutError') return new ErrorType(`${config.label} non ha risposto entro il tempo di attesa impostato. Aumenta il tempo di attesa in Account → Configura i provider AI.`);
+    return new ErrorType(`${config.label} non ha risposto. Verifica connessione ed endpoint.`);
+  }
   const googleKey = value('GEMINI_API_KEY');
   const definitions = {
     openai: { label: 'OpenAI', model: value('OPENAI_MODEL', 'gpt-5-mini'), key: value('OPENAI_API_KEY'), config: 'OPENAI_API_KEY', kind: 'responses', endpoint: 'https://api.openai.com/v1/responses' },
@@ -92,10 +109,11 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     if (!config.key) throw new ErrorType(`Inserisci la chiave API per ${config.label}.`);
     const headers = service === 'claude' ? { ...bearer(config.key), 'anthropic-version': anthropicVersion } : bearer(config.key);
     let response;
-    try { response = await fetcher(url(), { headers, redirect: 'error', signal: AbortSignal.timeout(15_000) }); }
+    const target = url();
+    try { response = await fetcher(target, { headers, redirect: 'error', signal: AbortSignal.timeout(customWait || 15_000) }); }
     catch (error) {
       if (error instanceof ErrorType) throw error;
-      throw new ErrorType(`${config.label} non ha risposto. Verifica connessione ed endpoint.`);
+      throw unanswered(config, 'model list', target, error);
     }
     if (!response.ok) await failed(config, response);
     const data = await response.json().catch(() => null);
@@ -131,8 +149,8 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     const [headers, body] = requests[config.kind]();
     let response;
     try {
-      response = await fetcher(config.endpoint, { method: 'POST', headers, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(config.kind === 'agent' ? 120_000 : 60_000) });
-    } catch { throw new ErrorType(`${config.label} non ha risposto. Verifica connessione ed endpoint.`); }
+      response = await fetcher(config.endpoint, { method: 'POST', headers, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(customWait || (config.kind === 'agent' ? 120_000 : 60_000)) });
+    } catch (error) { throw unanswered(config, 'generation', config.endpoint, error); }
     if (!response.ok) await failed(config, response);
     const data = await response.json().catch(() => null);
     const extract = {

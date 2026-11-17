@@ -20,6 +20,7 @@ export const groups = {
   qwen: [secret('QWEN_API_KEY', 'Chiave API QwenCloud'), field('QWEN_MODEL', 'Modello QwenCloud', { models: true, placeholder: 'qwen3.7-plus' }), field('QWEN_BASE_URL', 'URL base QwenCloud', { url: true, placeholder: 'https://ap-southeast-1.maas.qwencloudapi.com/compatible-mode/v1' })],
   google: [secret('GEMINI_API_KEY', 'Chiave Gemini API'), field('GEMINI_MODEL', 'Modello Gemini', { models: true, placeholder: 'gemini-3.8-flash' }), field('ANTIGRAVITY_AGENT', 'ID dell’agente Antigravity', { placeholder: 'antigravity-preview-05-2026' }), field('ANTIGRAVITY_MODEL', 'Modello Antigravity', { models: true, placeholder: 'gemini-3.8-flash' })],
   compatible: [secret('COMPAT_API_KEY', 'Chiave API del servizio'), field('COMPAT_BASE_URL', 'URL base Chat Completions', { url: true }), field('COMPAT_MODEL', 'Identificativo del modello', { models: true })],
+  wait: [field('AI_TIMEOUT_MINUTES', 'Attesa massima della risposta (minuti)', { placeholder: '1', pattern: '^\\d{1,2}(?:[.,]\\d{1,2})?$' })],
 };
 
 function httpsUrl(value, label) {
