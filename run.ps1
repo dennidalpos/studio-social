@@ -16,6 +16,8 @@
   Also install the Playwright test tooling.
 .PARAMETER StopExisting
   Stop every running instance without asking, then start.
+.PARAMETER NoMenu
+  Skip the start menu and start straight away.
 #>
 [CmdletBinding()]
 param(
@@ -23,7 +25,8 @@ param(
   [switch]$Live,
   [switch]$NoBrowser,
   [switch]$WithDevTools,
-  [switch]$StopExisting
+  [switch]$StopExisting,
+  [switch]$NoMenu
 )
 
 $ErrorActionPreference = 'Stop'
@@ -138,42 +141,55 @@ if ($StopExisting) {
   Start-Sleep -Milliseconds 500
 }
 
+# Start menu (arrow keys). Skipped with -NoMenu or when there is no interactive terminal.
+$interactive = -not $NoMenu -and -not [Console]::IsInputRedirected
 while ($true) {
   $instances = Get-Instances
   $owner = Get-PortOwner $effective
-  if (-not $instances -and -not $owner) { break }
+  $foreign = $owner -and ($instances.Pid -notcontains $owner.Pid)
+
+  if (-not $interactive) {
+    if ($owner) {
+      Write-Host "Port $effective is already in use (PID $($owner.Pid) $($owner.Name)). Use -StopExisting or -Port <port>." -ForegroundColor Yellow
+      exit 1
+    }
+    break
+  }
 
   Write-Host ''
+  Write-Host 'Studio Social' -ForegroundColor Cyan
   if ($instances) {
-    Write-Host 'Studio Social instances already running:' -ForegroundColor Cyan
+    Write-Host 'Running instances:'
     foreach ($item in $instances) {
       Write-Host ('  PID {0}  port {1}  started {2:g}' -f $item.Pid, $(if ($item.Port) { $item.Port } else { '?' }), $item.Started)
     }
+  } else {
+    Write-Host 'No instance is running.'
   }
-  if ($owner -and ($instances.Pid -notcontains $owner.Pid)) {
-    Write-Host "Port $effective is used by another program: PID $($owner.Pid) $($owner.Name)" -ForegroundColor Yellow
-  }
-
-  if ([Console]::IsInputRedirected) {
-    Write-Host 'No terminal to ask. Use -StopExisting or -Port <port>.'
-    exit 1
-  }
+  if ($foreign) { Write-Host "Port $effective is used by another program: PID $($owner.Pid) $($owner.Name)" -ForegroundColor Yellow }
 
   $options = @()
+  if (-not $owner) {
+    $options += [pscustomobject]@{ Label = "Start on port $effective (settings from .env)"; Action = 'start'; Target = $null }
+    $options += [pscustomobject]@{ Label = 'Start in demo mode (simulated sends)'; Action = 'demo'; Target = $null }
+    $options += [pscustomobject]@{ Label = 'Start in real mode (real accounts and publishing)'; Action = 'live'; Target = $null }
+  }
   foreach ($item in $instances) { $options += [pscustomobject]@{ Label = "Stop instance PID $($item.Pid) (port $($item.Port))"; Action = 'stop'; Target = $item } }
   if ($instances.Count -gt 1) { $options += [pscustomobject]@{ Label = 'Stop all instances'; Action = 'stopall'; Target = $null } }
   if ($instances | Where-Object Port) { $options += [pscustomobject]@{ Label = 'Open an instance in the browser'; Action = 'open'; Target = $null } }
   $options += [pscustomobject]@{ Label = "Use another port (now $effective)"; Action = 'port'; Target = $null }
-  if (-not $owner) { $options += [pscustomobject]@{ Label = 'Continue and start a new instance'; Action = 'continue'; Target = $null } }
   $options += [pscustomobject]@{ Label = 'Quit'; Action = 'quit'; Target = $null }
 
   $picked = Select-Menu 'What do you want to do?' @($options.Label)
   if ($picked -lt 0) { exit 0 }
   $option = $options[$picked]
 
+  $start = $false
   switch ($option.Action) {
     'quit' { exit 0 }
-    'continue' { break }
+    'start' { $start = $true }
+    'demo' { $env:DEMO = 'true'; $start = $true }
+    'live' { $env:DEMO = 'false'; $start = $true }
     'stop' {
       Stop-Process -Id $option.Target.Pid -Force -ErrorAction SilentlyContinue
       Start-Sleep -Milliseconds 500
@@ -194,7 +210,7 @@ while ($true) {
       $env:PORT = "$effective"
     }
   }
-  if ($option.Action -eq 'continue') { break }
+  if ($start) { break }
 }
 $env:PORT = "$effective"
 
