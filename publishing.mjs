@@ -160,5 +160,5 @@ export function mediaPublishing(env, { request, bearer, json, ProviderError }) {
     }
   }
 
-  return { instagram, instagramPhotos: Boolean(imageUrl), connectInstagram, publishInstagram, publishFacebook, publishLinkedin };
+  return { instagram, instagramPhotos: Boolean(imageUrl), connectInstagram, publishInstagram, publishFacebook, publishLinkedin, linkedinId };
 }

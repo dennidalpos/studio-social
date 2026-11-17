@@ -87,7 +87,8 @@ let oauthState;
 // Login: the key lives in .data/access.key (readable only by this user) and in the URL printed at
 // startup. Opening that URL sets an HttpOnly cookie; every other request needs the cookie, so a
 // process that can only reach the port (not the data folder) cannot use the API.
-const cookieName = 'studio_session';
+// Cookies are shared across ports on localhost, so the port is part of the name.
+const cookieName = `studio_session_${port}`;
 const sessionCookie = `${cookieName}=${accessKey}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`;
 function sameKey(given) {
   const a = Buffer.from(typeof given === 'string' ? given : '');

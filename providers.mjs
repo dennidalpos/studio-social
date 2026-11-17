@@ -91,8 +91,7 @@ export function providers(env, fetcher = fetch) {
           visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
         }),
       }, true);
-      if (response.status !== 201) throw new ProviderError('Risposta di pubblicazione LinkedIn inattesa.', true);
-      return response.headers.get('x-restli-id') || '';
+      return mediaService.linkedinId(response);
     }
     const response = await request('Facebook', `${graph}/${account.id}/feed`, {
       method: 'POST', headers: { ...bearer(env.FACEBOOK_PAGE_TOKEN), 'Content-Type': 'application/x-www-form-urlencoded' },

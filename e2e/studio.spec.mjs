@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 const origin = (baseURL) => new URL(baseURL).origin;
 // The server writes its login key in the scratch data folder (see playwright.config.mjs).
 const accessKey = readFileSync(new URL('../.e2e-run/.data/access.key', import.meta.url), 'utf8').trim();
-const cookie = { Cookie: `studio_session=${accessKey}` };
+const cookie = { Cookie: `studio_session_3100=${accessKey}` };
 const hasFfprobe = spawnSync('ffprobe', ['-version'], { stdio: 'ignore' }).status === 0;
 // 1x1 PNG
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==', 'base64');
@@ -44,7 +44,7 @@ test('everything except the LinkedIn callback requires the login cookie', async 
     expect((await request.get(path)).status(), path).toBe(401);
   }
   expect((await request.post('/api/new', { headers, data: { channel: 'linkedin', content: 'x' } })).status()).toBe(401);
-  expect((await request.post('/api/new', { headers: { ...headers, Cookie: 'studio_session=wrong' }, data: {} })).status()).toBe(401);
+  expect((await request.post('/api/new', { headers: { ...headers, Cookie: 'studio_session_3100=wrong' }, data: {} })).status()).toBe(401);
   // The page itself must not hand out anything that grants access.
   const page = await (await request.get('/')).text();
   expect(page).not.toContain(accessKey);
@@ -61,7 +61,7 @@ test('login key sets an HttpOnly cookie, a wrong key does not', async ({ request
   const login = await request.get(`/?key=${accessKey}`, { maxRedirects: 0 });
   expect(login.status()).toBe(303);
   const setCookie = login.headers()['set-cookie'];
-  expect(setCookie).toContain('studio_session=');
+  expect(setCookie).toContain('studio_session_3100=');
   expect(setCookie).toContain('HttpOnly');
   expect(setCookie).toContain('SameSite=Lax');
   expect((await request.get('/api/status', { headers: cookie })).status()).toBe(200);

@@ -138,7 +138,8 @@ function render(result, updatePlan = false) {
   for (const [channel, account] of Object.entries(result.accounts)) displayAccount(channel, account);
   const posts = $('posts');
   const signature = JSON.stringify(result.posts);
-  if (posts.dataset.rendered !== signature) {
+  const editing = posts.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
+  if (posts.dataset.rendered !== signature && !editing) {
     posts.dataset.rendered = signature;
     posts.replaceChildren(...(result.posts.length ? result.posts.map(postCard) : [$('empty').content.cloneNode(true)]));
   }
@@ -569,6 +570,8 @@ $('import-tls').addEventListener('submit', event => {
   applyHttps(event.submitter, { action: 'import', ...Object.fromEntries(new FormData(event.currentTarget)) }, true);
 });
 
+// A refresh skipped while a field had focus is applied as soon as the field loses it.
+$('posts').addEventListener('focusout', () => setTimeout(() => { if (state) render(state); }, 0));
 void loadConfiguration();
 providerSelect.addEventListener('change', updateProviderHint);
 void refresh(true);
