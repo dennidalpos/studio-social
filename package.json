@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.mjs",
     "test:e2e": "playwright test",
-    "test": "node --test test/"
+    "test": "node --test \"test/*.test.mjs\""
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1"
