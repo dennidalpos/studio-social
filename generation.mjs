@@ -64,7 +64,7 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     const model = config.model;
     const requests = {
       responses: () => [bearer(config.key), { model, store: false, max_output_tokens: 2500, instructions: system, input }],
-      messages: () => [{ ...bearer(config.key), 'anthropic-version': '2026-10-21' }, { model, max_tokens: 2500, system, messages: messages.slice(1) }],
+      messages: () => [{ ...bearer(config.key), 'anthropic-version': '2026-10-21' }, { model, max_tokens: 6000, output_config: { effort: 'low' }, system, messages: messages.slice(1) }],
       chat: () => [bearer(config.key), { model, messages, ...(selected === 'qwen' ? { max_tokens: 2500 } : {}), ...(selected === 'qwen' && model === 'qwen3.7-plus' ? { enable_thinking: false } : {}), ...(selected === 'gemini' ? { max_completion_tokens: 4000 } : {}) }],
       agent: () => [{ ...jsonHeaders, 'x-goog-api-key': config.key }, { agent: value('ANTIGRAVITY_AGENT', 'antigravity-preview-05-2026'), input, system_instruction: system, tools: [], agent_config: { type: 'antigravity', model, max_total_tokens: 12_000 } }],
     };
