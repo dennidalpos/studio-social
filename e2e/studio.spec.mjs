@@ -33,8 +33,8 @@ test('starts in demo mode without console errors', async ({ page }) => {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.reload();
   await expect(page.getByRole('heading', { name: /Calendario/ })).toBeVisible();
-  await expect(page.locator('#environment')).toContainText(/prova/i);
-  await expect(page.getByLabel('Modalità di Studio Social')).toHaveValue('demo');
+  await expect(page.locator('#environment')).toContainText(/demo · invii simulati/i);
+  await expect(page.getByLabel('Ambiente di Studio Social')).toHaveValue('demo');
   expect(errors).toEqual([]);
 });
 
@@ -149,6 +149,55 @@ test('uploads a photo through the interface', async ({ page }) => {
   await page.getByLabel('Canale').first().selectOption('linkedin');
   await page.locator('#plan-file').setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: png });
   await expect(page.locator('#plan-media img, #plan-media video')).toBeVisible({ timeout: 15_000 });
+});
+
+test('the bar stays visible, the menu marks the section and back-to-top works', async ({ page }) => {
+  await expect(page.locator('#to-top')).toBeHidden();
+  await page.getByRole('link', { name: 'Account' }).click();
+  await expect(page.locator('#account')).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'location');
+  // The bar is pinned and the section starts below it, not under it.
+  const bar = await page.locator('.bar').boundingBox();
+  const section = await page.locator('#account').boundingBox();
+  expect(bar.y).toBe(0);
+  expect(section.y).toBeGreaterThanOrEqual(bar.height - 1);
+  await expect(page.locator('#to-top')).toBeVisible();
+  await page.locator('#to-top').click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(page.locator('#to-top')).toBeHidden();
+  // A reload never restores a scroll position in the middle of the page.
+  await page.getByRole('link', { name: 'Account' }).click();
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0); // explicit #account is honoured
+  await page.goto('/');
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});
+
+test('the mode pill explains the mode and leads to the setting', async ({ page }) => {
+  const pill = page.locator('#environment');
+  await expect(pill).toHaveAttribute('title', /nulla viene inviato/);
+  await pill.click();
+  await expect(page.locator('#account')).toBeInViewport();
+  await expect(page.getByLabel('Ambiente di Studio Social')).toBeVisible();
+  await expect(page.locator('#mode-help')).toContainText('simulati');
+});
+
+test('errors are announced as alerts and stay visible under the bar', async ({ page }) => {
+  await page.getByRole('button', { name: 'Scrivi un post' }).click();
+  await page.getByRole('button', { name: 'Salva bozza' }).click();
+  await expect(page.locator('#editor-notice')).toHaveAttribute('role', 'alert');
+  await page.locator('#close-editor').click();
+  await page.getByRole('link', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Applica ambiente' }).click();
+  await expect(page.locator('#config-notice')).toHaveText('Questa modalità è già attiva.');
+});
+
+test('account guides open one at a time', async ({ page }) => {
+  await page.getByRole('link', { name: 'Account' }).click();
+  await page.getByText('Configura LinkedIn').click();
+  await page.getByText('Configura Facebook').click();
+  await expect(page.locator('#facebook-guide')).toHaveAttribute('open', '');
+  await expect(page.locator('#linkedin-guide')).not.toHaveAttribute('open', '');
 });
 
 test('account guides are available', async ({ page }) => {

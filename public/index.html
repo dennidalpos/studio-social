@@ -14,9 +14,9 @@
 </head>
 <body>
   <header class="bar">
-    <div class="brand"><span class="monogram" aria-hidden="true">S</span> Studio Social</div>
+    <a class="brand" href="/" id="home" aria-label="Studio Social, torna all’inizio"><span class="monogram" aria-hidden="true">S</span> Studio Social</a>
     <nav aria-label="Navigazione"><a href="#piano">Piano</a><a href="#post">Post</a><a href="#account">Account</a></nav>
-    <span class="pill" id="environment">Caricamento</span>
+    <a class="pill mode-pill" id="environment" href="#account">Caricamento</a>
   </header>
   <main>
     <section class="intro" aria-labelledby="title">
@@ -49,17 +49,17 @@
           </div>
           <div class="schedule">
             <fieldset><legend>Giorni</legend><div class="days">
-              <label><input type="checkbox" name="day" value="1"><span aria-label="Lunedì">Lu</span></label>
-              <label><input type="checkbox" name="day" value="2"><span aria-label="Martedì">Ma</span></label>
-              <label><input type="checkbox" name="day" value="3"><span aria-label="Mercoledì">Me</span></label>
-              <label><input type="checkbox" name="day" value="4"><span aria-label="Giovedì">Gi</span></label>
-              <label><input type="checkbox" name="day" value="5"><span aria-label="Venerdì">Ve</span></label>
-              <label><input type="checkbox" name="day" value="6"><span aria-label="Sabato">Sa</span></label>
-              <label><input type="checkbox" name="day" value="7"><span aria-label="Domenica">Do</span></label>
+              <label><input type="checkbox" name="day" value="1" aria-label="Lunedì"><span aria-hidden="true">Lu</span></label>
+              <label><input type="checkbox" name="day" value="2" aria-label="Martedì"><span aria-hidden="true">Ma</span></label>
+              <label><input type="checkbox" name="day" value="3" aria-label="Mercoledì"><span aria-hidden="true">Me</span></label>
+              <label><input type="checkbox" name="day" value="4" aria-label="Giovedì"><span aria-hidden="true">Gi</span></label>
+              <label><input type="checkbox" name="day" value="5" aria-label="Venerdì"><span aria-hidden="true">Ve</span></label>
+              <label><input type="checkbox" name="day" value="6" aria-label="Sabato"><span aria-hidden="true">Sa</span></label>
+              <label><input type="checkbox" name="day" value="7" aria-label="Domenica"><span aria-hidden="true">Do</span></label>
             </div></fieldset>
             <label>Ora italiana<input type="time" name="time" required></label>
           </div>
-          <label>Modalità<select name="mode"><option value="draft">Crea bozze da rivedere</option><option value="auto">Crea e pubblica automaticamente</option></select></label>
+          <label>Pubblicazione<select name="mode"><option value="draft">Crea bozze da rivedere</option><option value="auto">Crea e pubblica automaticamente</option></select></label>
           <label class="check"><input type="checkbox" name="enabled"> Attiva il piano ricorrente</label>
           <div class="actions"><button type="submit">Salva piano</button><button class="secondary" type="button" id="generate">Genera una bozza</button></div>
         </form>
@@ -73,14 +73,15 @@
     <section class="card" id="account" aria-labelledby="account-heading">
       <div class="section-heading"><h2 id="account-heading">Account</h2></div>
       <form id="studio-mode" class="mode-form">
-        <label>Modalità di Studio Social<select name="mode"><option value="demo">Prova · dati e invii simulati</option><option value="live">Reale · account e pubblicazioni reali</option></select></label>
-        <button type="submit" class="secondary small" disabled>Applica modalità</button>
+        <label>Ambiente di Studio Social<select name="mode" aria-describedby="mode-help"><option value="demo">Demo · dati e invii simulati</option><option value="live">Reale · account e pubblicazioni reali</option></select></label>
+        <button type="submit" class="secondary small" disabled>Applica ambiente</button>
       </form>
+      <p class="mode-help" id="mode-help"><strong>Demo</strong>: testi e pubblicazioni sono simulati e non esce nulla verso i social. <strong>Reale</strong>: usa i tuoi account e pubblica davvero.</p>
       <p id="config-notice" role="status" hidden></p>
       <div class="accounts">
         <article>
           <div class="channel linkedin" aria-hidden="true">in</div><div><h3>LinkedIn</h3><p id="linkedin-name">Profilo personale</p></div><button class="secondary small" type="button" id="linkedin-button">Collega</button>
-          <details class="account-guide" id="linkedin-guide">
+          <details class="account-guide" id="linkedin-guide" name="account-guide">
             <summary>Configura LinkedIn</summary>
             <ol>
               <li>Crea o apri l’app nel <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noopener noreferrer">portale LinkedIn Developers</a>. In <strong>Products</strong> abilita <strong>Share on LinkedIn</strong> e <strong>Sign In with LinkedIn using OpenID Connect</strong>.</li>
@@ -109,7 +110,7 @@
         </article>
         <article>
           <div class="channel facebook" aria-hidden="true">f</div><div><h3>Facebook</h3><p id="facebook-name">Pagina Facebook</p></div><button class="secondary small" type="button" id="facebook-button">Collega</button>
-          <details class="account-guide" id="facebook-guide">
+          <details class="account-guide" id="facebook-guide" name="account-guide">
             <summary>Configura Facebook</summary>
             <ol>
               <li>Apri la tua app in <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer">Meta for Developers</a>. Per la Pagina che vuoi usare, il tuo account deve poter creare contenuti (<code>CREATE_CONTENT</code>).</li>
@@ -123,7 +124,7 @@
         </article>
         <article>
           <div class="channel instagram" aria-hidden="true">IG</div><div><h3>Instagram</h3><p id="instagram-name">Account professionale</p></div><button class="secondary small" type="button" id="instagram-button">Collega</button>
-          <details class="account-guide" id="instagram-guide">
+          <details class="account-guide" id="instagram-guide" name="account-guide">
             <summary>Configura Instagram</summary>
             <ol>
               <li>Collega il profilo Instagram <strong>Business o Creator</strong> a una Pagina Facebook. Nell’app Meta usa <strong>Instagram API con Facebook Login</strong>.</li>
@@ -138,7 +139,7 @@
         </article>
         <article>
           <div class="channel tiktok" aria-hidden="true">TT</div><div><h3>TikTok</h3><p>Esportazione per la pubblicazione manuale</p></div>
-          <details class="account-guide" id="tiktok-guide">
+          <details class="account-guide" id="tiktok-guide" name="account-guide">
             <summary>Come pubblicare su TikTok</summary>
             <p>Le regole di TikTok riservano Direct Post alle app destinate a un pubblico ampio. In Studio Social questo canale funziona tramite esportazione, senza credenziali API.</p>
             <ol>
@@ -153,14 +154,17 @@
       <details id="ai-settings" class="provider-settings">
         <summary>Configura i provider AI</summary>
         <p>Salva la chiave API del provider scelto e selezionalo nel piano editoriale. La chiave resta nella copia locale di Studio Social.</p>
-        <details><summary>OpenAI</summary><form data-configuration="openai"></form></details>
-        <details><summary>Claude</summary><form data-configuration="claude"></form></details>
-        <details><summary>QwenCloud</summary><p>Il collegamento predefinito usa Singapore. Usa una chiave della stessa regione.</p><form data-configuration="qwen"></form></details>
-        <details><summary>Google Gemini e Antigravity</summary><form data-configuration="google"></form></details>
-        <details><summary>API compatibile con Chat Completions</summary><form data-configuration="compatible"></form></details>
+        <details name="provider"><summary>OpenAI</summary><form data-configuration="openai"></form></details>
+        <details name="provider"><summary>Claude</summary><form data-configuration="claude"></form></details>
+        <details name="provider"><summary>QwenCloud</summary><p>Il collegamento predefinito usa Singapore. Usa una chiave della stessa regione.</p><form data-configuration="qwen"></form></details>
+        <details name="provider"><summary>Google Gemini e Antigravity</summary><form data-configuration="google"></form></details>
+        <details name="provider"><summary>API compatibile con Chat Completions</summary><form data-configuration="compatible"></form></details>
       </details>
     </section>
   </main>
+  <button type="button" class="to-top" id="to-top" aria-label="Torna su" hidden>
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+  </button>
   <dialog id="editor" aria-labelledby="editor-title">
     <form id="edit-form">
       <div class="section-heading"><h2 id="editor-title">Modifica post</h2><button type="button" class="secondary small" id="close-editor">Chiudi</button></div>

@@ -27,12 +27,21 @@ button:disabled { opacity: .6; cursor: default; }
 button.secondary { color: var(--green); background: transparent; border-color: var(--control); }
 button.small { padding: .42rem .68rem; font-size: .84rem; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
-.bar { padding: .85rem max(5vw, calc((100vw - 1180px) / 2)); border-bottom: 1px solid var(--line); display: flex; gap: 1rem; justify-content: space-between; align-items: center; }
-.brand { display: flex; gap: .55rem; align-items: center; font-weight: 750; }
+html { scroll-padding-top: calc(var(--bar-h, 4.5rem) + .75rem); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+.bar { position: sticky; top: 0; z-index: 20; background: var(--page); padding: .85rem max(5vw, calc((100vw - 1180px) / 2)); border-bottom: 1px solid var(--line); display: flex; gap: 1rem; justify-content: space-between; align-items: center; }
+.brand { display: flex; gap: .55rem; align-items: center; font-weight: 750; text-decoration: none; }
 .monogram { background: var(--button); color: white; width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 7px; font: italic 1.35rem Georgia, serif; }
 nav { display: flex; gap: 1.25rem; font-size: .9rem; }
 nav a { text-decoration: none; }
 nav a:hover { text-decoration: underline; }
+nav a[aria-current] { color: var(--green); font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: .4em; }
+a.pill { text-decoration: none; }
+a.pill:hover { filter: brightness(.96); }
+.mode-pill.live { background: var(--ink); color: var(--page); font-weight: 650; }
+.mode-help { font-size: .85rem; margin: 0 0 1rem; max-width: 62ch; }
+.to-top { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 15; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%; box-shadow: 0 2px 10px #0003; }
+.to-top[hidden] { display: none; }
 .pill { display: inline-block; padding: .26rem .58rem; font-size: .79rem; border-radius: 99px; color: var(--green); background: var(--tint); white-space: nowrap; }
 main { width: min(90%, 1180px); margin: 0 auto 4rem; }
 .intro { display: flex; padding: 2.8rem 0 1.7rem; justify-content: space-between; align-items: end; gap: 1.5rem; }
@@ -77,6 +86,9 @@ legend { margin-bottom: .3rem; padding: 0; }
 .post-item .meta { font-size: .82rem; margin: .4rem 0; }
 .error { color: var(--error); }
 #notice, #editor-notice { background: var(--tint); padding: .65rem .8rem; border-radius: 6px; margin: 0 0 1rem; }
+/* The page notice stays under the bar, so the result of an action is visible wherever it was triggered. */
+#notice { position: sticky; top: calc(var(--bar-h, 4.5rem) + .5rem); z-index: 10; border: 1px solid var(--line); }
+#notice.error { border-color: var(--error); }
 #notice.error, #editor-notice.error { background: var(--error-bg); }
 #account { margin-top: 1rem; }
 .accounts { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }

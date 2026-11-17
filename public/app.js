@@ -36,10 +36,18 @@ async function api(path, data) {
   return result;
 }
 
+const dismissals = new WeakMap();
+
+// Errors are announced at once (alert); confirmations on the page notice fade after a few seconds.
 function message(text, error = false, target = $('notice')) {
+  clearTimeout(dismissals.get(target));
   target.textContent = text;
   target.hidden = !text;
   target.classList.toggle('error', error);
+  target.setAttribute('role', error ? 'alert' : 'status');
+  if (text && !error && target === $('notice') && !text.endsWith('…')) {
+    dismissals.set(target, setTimeout(() => { if (target.textContent === text) message('', false, target); }, 8000));
+  }
 }
 
 function node(tag, className, text) {
@@ -63,7 +71,7 @@ function displayAccount(channel, account) {
   const setupNeeded = !account.configured || (channel === 'linkedin' && !state.linkedinHttps);
   select.textContent = state.demo || setupNeeded ? 'Configura' : account.ready ? 'Scollega' : 'Collega';
   const expiry = account.expires ? ` · Scade il ${new Date(account.expires).toLocaleDateString('it-IT')}` : '';
-  $(`${channel}-name`).textContent = state.demo ? (account.configured ? 'Credenziali salvate · modalità prova' : 'Modalità prova') : account.ready ? `${account.name}${expiry}` : setupNeeded ? 'Configurazione da completare' : 'Pronto da collegare';
+  $(`${channel}-name`).textContent = state.demo ? (account.configured ? 'Credenziali salvate · demo' : 'Demo') : account.ready ? `${account.name}${expiry}` : setupNeeded ? 'Configurazione da completare' : 'Pronto da collegare';
 }
 
 function postCard(post) {
@@ -128,7 +136,10 @@ function render(result, updatePlan = false) {
     updateMedia('plan');
     for (const day of planForm.querySelectorAll('[name=day]')) day.checked = result.plan.days.includes(Number(day.value));
   }
-  $('environment').textContent = result.demo ? 'Modalità prova' : 'Modalità reale';
+  const environment = $('environment');
+  environment.textContent = result.demo ? 'Demo · invii simulati' : 'Reale · pubblica davvero';
+  environment.classList.toggle('live', !result.demo);
+  environment.title = result.demo ? 'Modalità demo: nulla viene inviato ai social. Clicca per cambiarla.' : 'Modalità reale: i post vengono pubblicati sui tuoi account. Clicca per cambiarla.';
   $('plan-state').textContent = result.plan.enabled ? 'Attivo' : 'In pausa';
   $('sent-label').textContent = result.demo ? 'Invii simulati' : 'Pubblicati';
   const count = (...statuses) => result.posts.filter(post => statuses.includes(post.status)).length;
@@ -528,7 +539,7 @@ modeForm.addEventListener('submit', event => {
     if (editor.open) editor.close();
     render(data.state, true);
     updateHttps(data);
-    message(demo ? 'Modalità prova attiva.' : 'Modalità reale attiva.', false, configurationNotice);
+    message(demo ? 'Ambiente demo attivo: gli invii sono simulati.' : 'Ambiente reale attivo: i post vengono pubblicati davvero.', false, configurationNotice);
   }, configurationNotice);
 });
 
@@ -569,6 +580,52 @@ $('import-tls').addEventListener('submit', event => {
   event.preventDefault();
   applyHttps(event.submitter, { action: 'import', ...Object.fromEntries(new FormData(event.currentTarget)) }, true);
 });
+
+// Navigation: sticky bar height for scroll offsets, current section, back-to-top, always start at the top.
+const bar = document.querySelector('.bar');
+const toTop = $('to-top');
+const sections = ['piano', 'post', 'account'].map(id => ({ id, element: $(id), link: document.querySelector(`nav a[href="#${id}"]`) }));
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const scrollBehavior = () => (reducedMotion.matches ? 'auto' : 'smooth');
+
+function syncBar() { document.documentElement.style.setProperty('--bar-h', `${bar.offsetHeight}px`); }
+new ResizeObserver(syncBar).observe(bar);
+syncBar();
+
+function syncScroll() {
+  toTop.hidden = window.scrollY < 600;
+  const line = bar.offsetHeight + window.innerHeight * .25;
+  const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+  let current = null;
+  for (const section of sections) if (section.element.getBoundingClientRect().top <= line) current = section;
+  if (nearBottom) current = sections[sections.length - 1];
+  // Sections side by side (wide layout) are in view together: mark every one that starts at the same height.
+  const alongside = (section) => current && Math.abs(section.element.getBoundingClientRect().top - current.element.getBoundingClientRect().top) < 8;
+  for (const section of sections) {
+    if (section === current || alongside(section)) section.link.setAttribute('aria-current', 'location');
+    else section.link.removeAttribute('aria-current');
+  }
+}
+window.addEventListener('scroll', syncScroll, { passive: true });
+window.addEventListener('resize', syncScroll);
+
+const goTop = () => { window.scrollTo({ top: 0, behavior: scrollBehavior() }); };
+toTop.addEventListener('click', goTop);
+$('home').addEventListener('click', event => { event.preventDefault(); goTop(); });
+// Menu links scroll without adding a history entry per click, so Back leaves the page instead of replaying the clicks.
+for (const link of document.querySelectorAll('nav a, a.mode-pill')) {
+  link.addEventListener('click', event => {
+    event.preventDefault();
+    const id = link.getAttribute('href').slice(1);
+    $(id).scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+    window.history.replaceState(null, '', `#${id}`);
+  });
+}
+// A reload or Back does not restore a scroll position in the middle of the page; only an explicit #section does.
+window.history.scrollRestoration = 'manual';
+if (window.location.hash && $(window.location.hash.slice(1))) $(window.location.hash.slice(1)).scrollIntoView();
+else window.scrollTo(0, 0);
+syncScroll();
 
 // A refresh skipped while a field had focus is applied as soon as the field loses it.
 $('posts').addEventListener('focusout', () => setTimeout(() => { if (state) render(state); }, 0));
