@@ -2,7 +2,7 @@
 
 A local web app for one person. It writes social posts from a brief, keeps editable drafts, and publishes to a LinkedIn profile, a Facebook Page or an Instagram professional account. For TikTok it prepares and exports posts. The recurring plan uses the `Europe/Rome` time zone; single posts use the time zone shown by your device.
 
-The interface and the generated posts are in Italian. This README is in English.
+The interface is available in Italian and English (switch with the IT/EN selector in the top bar; the first visit follows your browser language). Generated posts are written in the language selected when the plan is saved or the draft generated. This README is in English.
 
 Requirements: [Node.js](https://nodejs.org/) 24 or later. No runtime dependencies.
 
@@ -114,6 +114,14 @@ The table limits are the app's. The [LinkedIn Videos API](https://learn.microsof
 - Keep `npm start` running when you want the calendar to work; the browser can be closed. Scheduled posts left in the queue go out when the service restarts. If the outcome of a send is uncertain, check on the social and record the outcome in the app before rescheduling: an uncertain send is never repeated automatically.
 - The app listens only on the local machine and is meant for a single process and user. The `.data/` folder and any previous `.env` hold credentials or private data: keep them out of Git, shared archives and public backups. 24/7 operation needs an always-on machine.
 
+## Separate browser window (optional)
+
+```bash
+npm run browser
+```
+
+Opens a separate window (Electron, fetched on demand with `npx`, no new dependency) with Studio Social and a **Socials** menu for LinkedIn, Facebook, Instagram and TikTok. You sign in on the social's own page; Electron keeps the cookies in `.data/browser` (this user's folder, Git-ignored) so the login lasts. Studio Social never reads, fills or automates it. Only `https` pages and the local server can be opened in the window, and permission prompts (camera, location, notifications) are denied. Start the server first (`npm start` or `run.ps1`). Not verified on a real display in this repository's tests.
+
 ## Updating an existing copy
 
 Stop the app. Extract the new version into a new folder and move the `.data/` folder over from the old copy to keep drafts, attachments and the calendar. If you used a `.env`, you can copy it to keep earlier settings; changes saved from the dashboard take precedence. Start the app with `npm start`.
@@ -122,7 +130,7 @@ Stop the app. Extract the new version into a new folder and move the `.data/` fo
 
 ```sh
 npm test            # 6 unit tests
-npm run test:e2e    # 25 Playwright tests (demo mode, Microsoft Edge by default)
+npm run test:e2e    # 26 Playwright tests (demo mode, Microsoft Edge by default)
 ```
 
 `npm run test:e2e` needs `npm install` first and FFmpeg for the media tests. Set `E2E_CHANNEL=chrome`, or an empty value to use Playwright's own Chromium.
@@ -130,8 +138,8 @@ npm run test:e2e    # 25 Playwright tests (demo mode, Microsoft Edge by default)
 ## Limits
 
 - Real providers, OAuth flows and live mode have only been exercised with mocks and demo mode, never with real accounts.
-- Publishing with a personal login is assisted (copy and open); the app never automates or embeds it.
-- The interface is in Italian.
+- Publishing with a personal login is assisted (copy and open); the app never automates it. The optional window below only shows the socials' own pages.
+- The interface translation is done in the browser from Italian source strings; plan defaults saved earlier (for example the tone text) stay in the language they were saved in.
 
 ## License and credits
 

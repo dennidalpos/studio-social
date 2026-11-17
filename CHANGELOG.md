@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Interface language: Italian and English, with an IT/EN selector (first visit follows the browser language). Generated posts follow the language chosen for the plan or draft.
+- `npm run browser`: optional separate Electron window with a persistent profile in `.data/browser`, a Socials menu, https-only navigation and denied permission prompts. The sign-in stays the person's own action.
 - Simple view (default): write a post, see the preview with the per-social character count, then copy it and open the social in the user's own logged-in browser (LinkedIn opens with the text prefilled). No accounts, keys or scheduling. The draft and the choice are remembered in the browser; a button switches to the advanced view (plan, scheduling, API publishing, accounts).
 - Sticky top bar with the current section marked, back-to-top button, and page notices that stay visible under the bar.
 - `run.ps1`: installs and starts the app, with an arrow-key menu to start in demo or real mode, stop running instances or pick another port.

@@ -1,4 +1,7 @@
 const $ = (id) => document.getElementById(id);
+const t = (text) => window.i18n.t(text);
+const locale = () => window.i18n.locale;
+const language = () => window.i18n.lang;
 const planForm = $('plan');
 const providerSelect = planForm.elements.provider;
 const editor = $('editor');
@@ -70,7 +73,7 @@ function displayAccount(channel, account) {
   select.disabled = false;
   const setupNeeded = !account.configured || (channel === 'linkedin' && !state.linkedinHttps);
   select.textContent = state.demo || setupNeeded ? 'Configura' : account.ready ? 'Scollega' : 'Collega';
-  const expiry = account.expires ? ` · Scade il ${new Date(account.expires).toLocaleDateString('it-IT')}` : '';
+  const expiry = account.expires ? ` · Scade il ${new Date(account.expires).toLocaleDateString(locale())}` : '';
   $(`${channel}-name`).textContent = state.demo ? (account.configured ? 'Credenziali salvate · demo' : 'Demo') : account.ready ? `${account.name}${expiry}` : setupNeeded ? 'Configurazione da completare' : 'Pronto da collegare';
 }
 
@@ -79,9 +82,13 @@ function postCard(post) {
   const header = node('header', '');
   header.append(node('strong', '', channelLabels[post.channel]), node('span', 'pill', statusLabels[post.status]));
   article.append(header);
-  if (post.content) article.append(node('p', 'copy', post.content));
+  if (post.content) {
+    const copy = node('p', 'copy', post.content);
+    copy.dataset.noI18n = '';
+    article.append(copy);
+  }
   if (post.due && post.status === 'queued') {
-    article.append(node('p', 'meta', new Date(post.due).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })));
+    article.append(node('p', 'meta', new Date(post.due).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' })));
   }
   if (post.media) article.append(mediaPreview(post.media, { downloadable: post.channel === 'tiktok' }));
   if (post.channel === 'tiktok' && post.content) {
@@ -168,7 +175,7 @@ function mediaPreview(media, { downloadable = false, reportError = false } = {})
     item.preload = 'metadata';
     item.setAttribute('aria-label', media.name);
   }
-  container.append(item, node('p', 'meta', `${media.name} · ${media.width}×${media.height} · ${(media.bytes / 1_000_000).toLocaleString('it-IT', { maximumFractionDigits: 2 })} MB`));
+  container.append(item, node('p', 'meta', `${media.name} · ${media.width}×${media.height} · ${(media.bytes / 1_000_000).toLocaleString(locale(), { maximumFractionDigits: 2 })} MB`));
   if (reportError) {
     const notice = node('p', 'media-hint error', 'Il browser non riesce ad aprire l’allegato. Puoi scaricarlo e aprirlo sul tuo dispositivo.');
     notice.hidden = true;
@@ -215,7 +222,7 @@ function openPostPreview({ channel, content, status, due, media, editingDraft = 
   mark.className = `channel ${channel}`;
   mark.textContent = { linkedin: 'in', facebook: 'f', instagram: 'IG', tiktok: 'TT' }[channel];
   $('preview-channel').textContent = channelLabels[channel];
-  const date = due && status === 'queued' ? new Date(due).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  const date = due && status === 'queued' ? new Date(due).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' }) : '';
   $('preview-status').textContent = [editingDraft ? 'Modifiche non salvate' : statusLabels[status], date].filter(Boolean).join(' · ');
   const copy = $('preview-copy');
   copy.textContent = content || (media ? '' : 'Aggiungi testo o un allegato per vedere l’anteprima.');
@@ -300,7 +307,7 @@ function uploadMedia(location, input) {
 function getPlanInput() {
   const data = new FormData(planForm);
   const { day, enabled, ...values } = Object.fromEntries(data);
-  return { ...values, days: data.getAll('day').map(Number), enabled: enabled === 'on', mediaId: mediaSelections.plan?.id ?? null };
+  return { ...values, language: language(), days: data.getAll('day').map(Number), enabled: enabled === 'on', mediaId: mediaSelections.plan?.id ?? null };
 }
 
 async function change(trigger, action, target = $('notice')) {
@@ -339,7 +346,7 @@ function setPost(trigger, action) {
   const { content, channel, due } = Object.fromEntries(new FormData(form));
   if (!content.trim() && !mediaSelections.editor) return message('Aggiungi testo o un allegato.', true, $('editor-notice'));
   if (action === 'schedule' && !due) return message('Scegli data e ora per il post.', true, $('editor-notice'));
-  if (action === 'now' && !state.demo && !window.confirm(`Pubblicare questo post su ${channelLabels[editing.channel]}?`)) return;
+  if (action === 'now' && !state.demo && !window.confirm(t(`Pubblicare questo post su ${channelLabels[editing.channel]}?`))) return;
   const postId = editing?.id;
   const mediaId = mediaSelections.editor?.id ?? null;
   void change(trigger, async () => {
@@ -361,7 +368,7 @@ function verify(post, found) {
 planForm.addEventListener('submit', event => {
   event.preventDefault();
   const input = getPlanInput();
-  if (input.enabled && input.mode === 'auto' && !state?.demo && !window.confirm(`Attivare creazione e pubblicazione automatica su ${channelLabels[input.channel]}?`)) return;
+  if (input.enabled && input.mode === 'auto' && !state?.demo && !window.confirm(t(`Attivare creazione e pubblicazione automatica su ${channelLabels[input.channel]}?`))) return;
   void change(event.submitter, async () => { render(await api('plan', input)); message('Piano salvato.'); });
 });
 $('generate').addEventListener('click', event => {
@@ -533,7 +540,7 @@ modeForm.addEventListener('submit', event => {
   event.preventDefault();
   const demo = modeForm.elements.mode.value === 'demo';
   if (demo === state?.demo) return message('Questa modalità è già attiva.', false, configurationNotice);
-  if (!demo && !window.confirm('Attivare la modalità reale? Verranno ripresi il calendario e gli invii della modalità reale.')) return;
+  if (!demo && !window.confirm(t('Attivare la modalità reale? Verranno ripresi il calendario e gli invii della modalità reale.'))) return;
   void change(event.submitter, async () => {
     const data = await api('configuration', { group: 'mode', demo });
     if (editor.open) editor.close();

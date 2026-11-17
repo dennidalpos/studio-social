@@ -18,7 +18,7 @@ Calm, editorial, trustworthy. Plain language, no hype. Warm green palette with s
 
 ## Anti-references
 
-Dashboards crowded with metrics, growth-hacking tone, dark patterns that push automatic posting, and anything that stores or automates personal logins.
+Dashboards crowded with metrics, growth-hacking tone, dark patterns that push automatic posting, and anything that automates or reads personal logins. The optional separate browser window only keeps the user's own cookies in a local, Git-ignored profile; the app never sees or fills credentials.
 
 ## Design principles
 
@@ -30,4 +30,4 @@ Dashboards crowded with metrics, growth-hacking tone, dark patterns that push au
 
 ## Accessibility and inclusion
 
-Target WCAG 2.2 AA. Respect `prefers-color-scheme` and reduced motion. The UI is currently Italian (open decision on language); docs are English.
+Target WCAG 2.2 AA. Respect `prefers-color-scheme` and reduced motion. The UI is available in Italian and English (selector in the top bar); docs are English.

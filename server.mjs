@@ -156,7 +156,7 @@ function validatedPlan(data) {
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(data.time) || !['draft', 'auto'].includes(data.mode) || typeof data.enabled !== 'boolean') {
     throw new InputError('Controlla orario e modalità del piano.');
   }
-  const result = { ...brief(data, data.enabled), days: [...new Set(data.days)], time: data.time, mode: data.mode, enabled: data.enabled };
+  const result = { ...brief(data, data.enabled), language: data.language === 'en' ? 'en' : 'it', days: [...new Set(data.days)], time: data.time, mode: data.mode, enabled: data.enabled };
   if (result.enabled && !result.days.length) throw new InputError('Scegli almeno un giorno.');
   result.provider = service.generation.validate(data.provider ?? getPlan().provider, result.enabled);
   const automatic = result.enabled && result.mode === 'auto';
@@ -320,7 +320,7 @@ function redirect(res, result) {
 }
 
 const files = {
-  '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'],
+  '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/i18n.js': ['i18n.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'],
   '/fonts/dm-sans-latin-wght-normal.woff2': ['fonts/dm-sans-latin-wght-normal.woff2', 'font/woff2'],
   '/fonts/instrument-serif-latin-400-normal.woff2': ['fonts/instrument-serif-latin-400-normal.woff2', 'font/woff2'],
   '/favicon.svg': ['favicon.svg', 'image/svg+xml'], '/favicon.ico': ['favicon.svg', 'image/svg+xml'],
@@ -411,7 +411,7 @@ async function serve(req, res) {
       set('plan', validatedPlan(data));
       void work();
     } else if (path === '/api/generate') {
-      const input = brief(data, true);
+      const input = { ...brief(data, true), language: data.language === 'en' ? 'en' : 'it' };
       const media = selectMedia(data.mediaId, input.channel);
       addPost(input.channel, await service.generate({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), recent: recentPosts(input.channel) }), 'draft', null, media?.id ?? null);
     } else if (path === '/api/new') {

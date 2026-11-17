@@ -177,3 +177,6 @@ body[data-view="simple"] .advanced-only, body[data-view="advanced"] .simple-only
 #view-toggle .short { display: none; }
 @media (max-width: 570px) { #view-toggle .short { display: inline; } .bar-tools { margin-left: auto; } .bar .long { display: none; } }
 input:not([type=checkbox], [type=radio]), select, textarea { font-weight: 400; }
+
+.lang-select { font: inherit; font-size: .84rem; padding: .42rem .5rem; min-height: 2.75rem; border: 1px solid var(--line, currentColor); border-radius: 10px; background: transparent; color: inherit; }
+@media (max-width: 570px) { .bar { gap: .5rem; } .bar-tools { gap: .4rem; } .lang-select { width: 3.3rem; padding-inline: .3rem; } }

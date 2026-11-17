@@ -21,7 +21,10 @@ async function createDraft(page, topic) {
 
 test.beforeEach(async ({ page }, testInfo) => {
   // Tests run in the advanced view unless their title starts with "simple:"; the choice is only seeded once.
-  await page.addInitScript((view) => { if (!localStorage.getItem('studio-view')) localStorage.setItem('studio-view', view); }, testInfo.title.startsWith('simple:') ? 'simple' : 'advanced');
+  await page.addInitScript((view) => {
+    if (!localStorage.getItem('studio-view')) localStorage.setItem('studio-view', view);
+    if (!localStorage.getItem('studio-lang')) localStorage.setItem('studio-lang', 'it');
+  }, testInfo.title.startsWith('simple:') ? 'simple' : 'advanced');
   await page.goto(`/?key=${accessKey}`); // logs in (cookie) and redirects to /
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator('body')).toHaveAttribute('data-view', /simple|advanced/);
@@ -330,4 +333,15 @@ test.describe('dark scheme', () => {
     await page.evaluate(() => document.fonts.ready);
     expect(await page.evaluate(() => [...document.fonts].filter((font) => font.status === 'loaded').map((font) => font.family).sort())).toEqual(['DM Sans', 'Instrument Serif']);
   });
+});
+
+test('language: English translates the interface and Italian restores it', async ({ page }) => {
+  await page.getByLabel('Lingua').selectOption('en');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('heading', { name: /Editorial calendar/ })).toBeVisible();
+  await expect(page.locator('#generate')).toHaveText('Generate a draft');
+  await page.locator('#generate').click();
+  await expect(page.locator('#notice')).toHaveText(/Working…|Topics: enter 1 to 350 characters\./);
+  await page.getByLabel('Language').selectOption('it');
+  await expect(page.locator('#generate')).toHaveText('Genera una bozza');
 });
