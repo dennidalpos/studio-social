@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f5f0">
+  <meta name="studio-token" content="__STUDIO_TOKEN__">
+  <title>Studio Social — Calendario editoriale</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="bar">
+    <div class="brand"><span class="monogram" aria-hidden="true">S</span> Studio Social</div>
+    <nav aria-label="Navigazione"><a href="#piano">Piano</a><a href="#post">Post</a><a href="#account">Account</a></nav>
+    <span class="pill" id="environment">Caricamento</span>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="title">
+      <div><h1 id="title">Calendario<br>editoriale<span>.</span></h1>
+      <p>Scrivi, programma e pubblica su LinkedIn, Facebook e Instagram. Prepara i post per TikTok.</p></div>
+      <div class="metrics" aria-label="Riepilogo">
+        <div><strong id="draft-count">0</strong><span>Bozze</span></div>
+        <div><strong id="queue-count">0</strong><span>In programma</span></div>
+        <div><strong id="sent-count">0</strong><span id="sent-label">Pubblicati</span></div>
+      </div>
+    </section>
+    <p id="notice" role="status" hidden></p>
+    <div class="workspace">
+      <section class="card" id="piano" aria-labelledby="plan-heading">
+        <div class="section-heading"><h2 id="plan-heading">Piano editoriale</h2><span class="pill" id="plan-state">In pausa</span></div>
+        <form id="plan" autocomplete="off">
+          <label>Canale<select name="channel"><option value="linkedin">LinkedIn · profilo personale</option><option value="facebook">Facebook · Pagina</option><option value="instagram">Instagram · professionale</option><option value="tiktok">TikTok · esportazione</option></select></label>
+          <label>Provider AI<select name="provider" aria-describedby="provider-model"></select></label>
+          <small id="provider-model" aria-live="polite" hidden></small>
+          <label>Temi<input name="topic" maxlength="350" placeholder="Es. innovazione e gestione dei progetti"></label>
+          <div class="row">
+            <label>Pubblico<input name="audience" maxlength="350" placeholder="Es. professionisti del settore"></label>
+            <label>Tono<input name="tone" maxlength="150" placeholder="Es. professionale"></label>
+          </div>
+          <label>Materiale di riferimento<textarea name="facts" rows="3" maxlength="4500" placeholder="Note, esempi ed esperienze da cui partire"></textarea></label>
+          <div class="media-field">
+            <label>Allegato del piano<input type="file" id="plan-file" aria-describedby="plan-media-hint"></label>
+            <p class="media-hint" id="plan-media-hint"></p>
+            <div id="plan-media"></div>
+          </div>
+          <div class="schedule">
+            <fieldset><legend>Giorni</legend><div class="days">
+              <label><input type="checkbox" name="day" value="1"><span aria-label="Lunedì">Lu</span></label>
+              <label><input type="checkbox" name="day" value="2"><span aria-label="Martedì">Ma</span></label>
+              <label><input type="checkbox" name="day" value="3"><span aria-label="Mercoledì">Me</span></label>
+              <label><input type="checkbox" name="day" value="4"><span aria-label="Giovedì">Gi</span></label>
+              <label><input type="checkbox" name="day" value="5"><span aria-label="Venerdì">Ve</span></label>
+              <label><input type="checkbox" name="day" value="6"><span aria-label="Sabato">Sa</span></label>
+              <label><input type="checkbox" name="day" value="7"><span aria-label="Domenica">Do</span></label>
+            </div></fieldset>
+            <label>Ora italiana<input type="time" name="time" required></label>
+          </div>
+          <label>Modalità<select name="mode"><option value="draft">Crea bozze da rivedere</option><option value="auto">Crea e pubblica automaticamente</option></select></label>
+          <label class="check"><input type="checkbox" name="enabled"> Attiva il piano ricorrente</label>
+          <div class="actions"><button type="submit">Salva piano</button><button class="secondary" type="button" id="generate">Genera una bozza</button></div>
+        </form>
+      </section>
+      <section class="card" id="post" aria-labelledby="posts-heading">
+        <div class="section-heading"><h2 id="posts-heading">Post</h2><button class="secondary small" type="button" id="new-post">Scrivi un post</button></div>
+        <template id="empty"><div class="empty"><span aria-hidden="true">✎</span><h3>Il tuo primo post parte da qui</h3><p>Scegli un tema e genera una bozza, oppure scrivi il post direttamente.</p></div></template>
+        <div id="posts"></div>
+      </section>
+    </div>
+    <section class="card" id="account" aria-labelledby="account-heading">
+      <div class="section-heading"><h2 id="account-heading">Account</h2></div>
+      <form id="studio-mode" class="mode-form">
+        <label>Modalità di Studio Social<select name="mode"><option value="demo">Prova · dati e invii simulati</option><option value="live">Reale · account e pubblicazioni reali</option></select></label>
+        <button type="submit" class="secondary small" disabled>Applica modalità</button>
+      </form>
+      <p id="config-notice" role="status" hidden></p>
+      <div class="accounts">
+        <article>
+          <div class="channel linkedin" aria-hidden="true">in</div><div><h3>LinkedIn</h3><p id="linkedin-name">Profilo personale</p></div><button class="secondary small" type="button" id="linkedin-button">Collega</button>
+          <details class="account-guide" id="linkedin-guide">
+            <summary>Configura LinkedIn</summary>
+            <ol>
+              <li>Crea o apri l’app nel <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noopener noreferrer">portale LinkedIn Developers</a>. In <strong>Products</strong> abilita <strong>Share on LinkedIn</strong> e <strong>Sign In with LinkedIn using OpenID Connect</strong>.</li>
+              <li>In <strong>Auth</strong>, copia <strong>Client ID</strong> e <strong>Client Secret</strong> nei campi qui sotto. Aggiungi alla lista delle URL di reindirizzamento il callback mostrato qui.</li>
+            </ol>
+            <div class="callback-row"><code id="linkedin-callback">Caricamento…</code><button class="secondary small" type="button" id="copy-callback" disabled>Copia URL</button></div>
+            <form data-configuration="linkedin"></form>
+            <h4>HTTPS locale</h4>
+            <p>Attiva HTTPS per ricevere il ritorno da LinkedIn. Se generi un certificato locale, apri il collegamento HTTPS e autorizza il certificato di <code>localhost</code> nel browser o nel sistema. In alternativa, usa un certificato attendibile per <code>localhost</code>.</p>
+            <div class="actions">
+              <button type="button" class="secondary small" id="generate-tls">Genera certificato locale</button>
+              <a id="open-linkedin-https" class="small-link" target="_blank" rel="noopener noreferrer" hidden>Apri HTTPS locale</a>
+              <a id="download-linkedin-cert" class="small-link" href="/linkedin-localhost.pem" download hidden>Scarica certificato pubblico</a>
+            </div>
+            <p id="linkedin-tls-status" role="status"></p>
+            <details class="nested-guide"><summary>Usa un certificato esistente</summary>
+              <form id="import-tls" autocomplete="off">
+                <label>Certificato PEM<textarea name="cert" rows="3" maxlength="15000" required spellcheck="false"></textarea></label>
+                <label>Chiave privata PEM<textarea name="key" rows="3" maxlength="15000" required spellcheck="false"></textarea></label>
+                <div><button type="submit" class="secondary small">Salva certificato</button></div>
+              </form>
+            </details>
+            <p>Passa alla modalità reale e premi <strong>Collega</strong>. Controlla che compaia il tuo profilo. Per il video, verifica anche l’accesso alle API LinkedIn <strong>Videos</strong> e <strong>Posts</strong>. Se il token scade, collega di nuovo il profilo.</p>
+            <p><a href="https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow" target="_blank" rel="noopener noreferrer">Guida ufficiale OAuth di LinkedIn</a></p>
+          </details>
+        </article>
+        <article>
+          <div class="channel facebook" aria-hidden="true">f</div><div><h3>Facebook</h3><p id="facebook-name">Pagina Facebook</p></div><button class="secondary small" type="button" id="facebook-button">Collega</button>
+          <details class="account-guide" id="facebook-guide">
+            <summary>Configura Facebook</summary>
+            <ol>
+              <li>Apri la tua app in <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer">Meta for Developers</a>. Per la Pagina che vuoi usare, il tuo account deve poter creare contenuti (<code>CREATE_CONTENT</code>).</li>
+              <li>Nel <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener noreferrer">Graph API Explorer</a>, seleziona la tua app e richiedi <code>pages_show_list</code>, <code>pages_read_engagement</code> e <code>pages_manage_posts</code>.</li>
+              <li>Con il token utente, esegui <code>GET /me/accounts?fields=id,name,access_token,tasks</code>. Dalla riga della Pagina copia <code>id</code> e <code>access_token</code> nei campi qui sotto.</li>
+            </ol>
+            <form data-configuration="facebook"></form>
+            <p>Passa alla modalità reale e premi <strong>Collega</strong>. Verifica il nome della Pagina. Se la Pagina manca da <code>/me/accounts</code>, controlla il ruolo sulla Pagina e che l’app Meta abbia accesso ai permessi richiesti.</p>
+            <p><a href="https://developers.facebook.com/docs/graph-api/reference/page/feed/" target="_blank" rel="noopener noreferrer">Guida ufficiale al feed della Pagina</a></p>
+          </details>
+        </article>
+        <article>
+          <div class="channel instagram" aria-hidden="true">IG</div><div><h3>Instagram</h3><p id="instagram-name">Account professionale</p></div><button class="secondary small" type="button" id="instagram-button">Collega</button>
+          <details class="account-guide" id="instagram-guide">
+            <summary>Configura Instagram</summary>
+            <ol>
+              <li>Collega il profilo Instagram <strong>Business o Creator</strong> a una Pagina Facebook. Nell’app Meta usa <strong>Instagram API con Facebook Login</strong>.</li>
+              <li>Ottieni un token della Pagina con <code>instagram_basic</code>, <code>instagram_content_publish</code> e <code>pages_read_engagement</code>. Se usi il token del collegamento Facebook, abilita questi permessi in Meta e rigenera il token.</li>
+              <li>Inserisci l’ID e il token della <strong>Pagina Facebook collegata</strong>. Puoi lasciare entrambi i campi vuoti per usare le credenziali salvate in Facebook.</li>
+            </ol>
+            <form data-configuration="instagram"></form>
+            <p><strong>Reel:</strong> carica un file locale. <strong>Foto JPG:</strong> indica una cartella locale già servita dal tuo hosting e il corrispondente URL HTTPS pubblico. Meta usa quell’URL per scaricare la foto.</p>
+            <p>Passa alla modalità reale e premi <strong>Collega</strong>. Verifica il nome utente Instagram. Se il profilo non appare, controlla il collegamento alla Pagina e i permessi del token.</p>
+            <p><a href="https://developers.facebook.com/documentation/instagram-platform/content-publishing" target="_blank" rel="noopener noreferrer">Guida ufficiale alla pubblicazione Instagram</a></p>
+          </details>
+        </article>
+        <article>
+          <div class="channel tiktok" aria-hidden="true">TT</div><div><h3>TikTok</h3><p>Esportazione per la pubblicazione manuale</p></div>
+          <details class="account-guide" id="tiktok-guide">
+            <summary>Come pubblicare su TikTok</summary>
+            <p>Le regole di TikTok riservano Direct Post alle app destinate a un pubblico ampio. In Studio Social questo canale funziona tramite esportazione, senza credenziali API.</p>
+            <ol>
+              <li>Scegli <strong>TikTok · esportazione</strong> nel piano editoriale e crea una bozza.</li>
+              <li>Allega un file compatibile. Nella scheda del post usa <strong>Scarica il media</strong> e <strong>Copia didascalia</strong>.</li>
+              <li>Apri TikTok, carica il contenuto e incolla la didascalia. Controlla l’anteprima e pubblica.</li>
+            </ol>
+            <p><a href="https://developers.tiktok.com/docs/en/content-sharing-guidelines" target="_blank" rel="noopener noreferrer">Regole ufficiali per Direct Post</a></p>
+          </details>
+        </article>
+      </div>
+      <details id="ai-settings" class="provider-settings">
+        <summary>Configura i provider AI</summary>
+        <p>Salva la chiave API del provider scelto e selezionalo nel piano editoriale. La chiave resta nella copia locale di Studio Social.</p>
+        <details><summary>OpenAI</summary><form data-configuration="openai"></form></details>
+        <details><summary>Claude</summary><form data-configuration="claude"></form></details>
+        <details><summary>QwenCloud</summary><p>Il collegamento predefinito usa Singapore. Usa una chiave della stessa regione.</p><form data-configuration="qwen"></form></details>
+        <details><summary>Google Gemini e Antigravity</summary><form data-configuration="google"></form></details>
+        <details><summary>API compatibile con Chat Completions</summary><form data-configuration="compatible"></form></details>
+      </details>
+    </section>
+  </main>
+  <dialog id="editor" aria-labelledby="editor-title">
+    <form id="edit-form">
+      <div class="section-heading"><h2 id="editor-title">Modifica post</h2><button type="button" class="secondary small" id="close-editor">Chiudi</button></div>
+      <label id="editor-channel">Canale<select name="channel"><option value="linkedin">LinkedIn</option><option value="facebook">Pagina Facebook</option><option value="instagram">Instagram</option><option value="tiktok">TikTok</option></select></label>
+      <label>Testo<textarea rows="8" name="content" maxlength="3000"></textarea></label>
+      <div class="media-field">
+        <label>Allegato del post<input type="file" id="editor-file" aria-describedby="editor-media-hint"></label>
+        <p class="media-hint" id="editor-media-hint"></p>
+        <div id="editor-media"></div>
+      </div>
+      <label id="editor-date">Data e ora (fuso del dispositivo)<input name="due" type="datetime-local"></label>
+      <p id="editor-notice" role="status" hidden></p>
+      <div class="actions"><button type="submit">Salva bozza</button><button class="secondary" type="button" id="preview-editor" aria-haspopup="dialog">Anteprima</button><button class="secondary" type="button" id="queue">Programma</button><button class="secondary" type="button" id="send">Pubblica ora</button></div>
+    </form>
+  </dialog>
+  <dialog id="post-preview" aria-labelledby="post-preview-title">
+    <div class="section-heading preview-heading">
+      <h2 id="post-preview-title">Anteprima post</h2>
+      <form method="dialog"><button class="secondary small" type="submit" autofocus>Chiudi</button></form>
+    </div>
+    <article class="preview-post">
+      <header class="preview-post-header">
+        <span class="channel" id="preview-channel-mark" aria-hidden="true"></span>
+        <div><h3 id="preview-channel"></h3><p id="preview-status" class="meta"></p></div>
+      </header>
+      <p id="preview-copy"></p>
+      <label class="check" id="preview-media-option" hidden><input type="checkbox" id="preview-media-checkbox" aria-controls="preview-media"> Mostra allegato</label>
+      <div id="preview-media" hidden></div>
+    </article>
+  </dialog>
+</body>
+</html>

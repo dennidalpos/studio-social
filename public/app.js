@@ -1,0 +1,539 @@
+const $ = (id) => document.getElementById(id);
+const planForm = $('plan');
+const providerSelect = planForm.elements.provider;
+const editor = $('editor');
+const previewDialog = $('post-preview');
+const previewMedia = $('preview-media');
+const previewMediaToggle = $('preview-media-checkbox');
+const form = $('edit-form');
+const channelLabels = { linkedin: 'LinkedIn', facebook: 'Pagina Facebook', instagram: 'Instagram', tiktok: 'TikTok' };
+const acceptedFiles = { linkedin: '.jpg,.jpeg,.png,.mp4', facebook: '.jpg,.jpeg,.png,.mp4,.mov', instagram: '.jpg,.jpeg,.mp4,.mov', tiktok: '.jpg,.jpeg,.webp,.mp4,.mov,.webm' };
+const mediaSelections = { plan: null, editor: null };
+const statusLabels = {
+  draft: 'Bozza', queued: 'In programma', failed: 'Da riprogrammare', unknown: 'Da verificare',
+  published: 'Pubblicato', simulated: 'Invio simulato', generating: 'In generazione', publishing: 'In invio',
+};
+let state;
+let revision = 0;
+let busy = false;
+let editing;
+let previewAttachment;
+
+const studioToken = document.querySelector('meta[name="studio-token"]')?.content ?? '';
+
+async function api(path, data) {
+  const headers = { 'Content-Type': 'application/json', 'X-Studio-Token': studioToken };
+  if (state) headers['X-Studio-Mode'] = String(state.demo);
+  const options = data === undefined ? { headers: { 'X-Studio-Token': studioToken } } : { method: 'POST', headers, body: JSON.stringify(data) };
+  const response = await fetch(`/api/${path}`, options);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Operazione non riuscita.');
+  return result;
+}
+
+function message(text, error = false, target = $('notice')) {
+  target.textContent = text;
+  target.hidden = !text;
+  target.classList.toggle('error', error);
+}
+
+function node(tag, className, text) {
+  const item = document.createElement(tag);
+  item.className = className;
+  if (text) item.textContent = text;
+  return item;
+}
+
+function button(label, fn) {
+  const item = node('button', 'secondary small', label);
+  item.type = 'button';
+  item.addEventListener('click', fn);
+  return item;
+}
+
+function displayAccount(channel, account) {
+  if (channel === 'tiktok') return;
+  const select = $(`${channel}-button`);
+  select.disabled = false;
+  const setupNeeded = !account.configured || (channel === 'linkedin' && !state.linkedinHttps);
+  select.textContent = state.demo || setupNeeded ? 'Configura' : account.ready ? 'Scollega' : 'Collega';
+  const expiry = account.expires ? ` · Scade il ${new Date(account.expires).toLocaleDateString('it-IT')}` : '';
+  $(`${channel}-name`).textContent = state.demo ? (account.configured ? 'Credenziali salvate · modalità prova' : 'Modalità prova') : account.ready ? `${account.name}${expiry}` : setupNeeded ? 'Configurazione da completare' : 'Pronto da collegare';
+}
+
+function postCard(post) {
+  const article = node('article', 'post-item');
+  const header = node('header', '');
+  header.append(node('strong', '', channelLabels[post.channel]), node('span', 'pill', statusLabels[post.status]));
+  article.append(header);
+  if (post.content) article.append(node('p', 'copy', post.content));
+  if (post.due && post.status === 'queued') {
+    article.append(node('p', 'meta', new Date(post.due).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })));
+  }
+  if (post.media) article.append(mediaPreview(post.media, { downloadable: post.channel === 'tiktok' }));
+  if (post.channel === 'tiktok' && post.content) {
+    article.append(button('Copia didascalia', async () => {
+      try { await navigator.clipboard.writeText(post.content); message('Didascalia copiata.'); }
+      catch { message('Seleziona il testo e copialo manualmente.', true); }
+    }));
+  }
+  if (post.error) article.append(node('p', 'meta error', post.error));
+  const actions = node('div', 'actions post-actions');
+  const preview = button('Anteprima', () => openPostPreview(post));
+  preview.setAttribute('aria-haspopup', 'dialog');
+  actions.append(preview);
+  if (['draft', 'queued', 'failed'].includes(post.status)) actions.append(button('Modifica', () => openEditor(post)));
+  article.append(actions);
+  if (post.status === 'unknown') {
+    const actions = node('div', 'actions');
+    actions.append(button('L’ho trovato sul social', () => verify(post, true)), button('Assente sul social', () => verify(post, false)));
+    article.append(actions);
+  }
+  return article;
+}
+
+function updateProviderHint() {
+  const option = state?.generationProviders.find(provider => provider.id === providerSelect.value);
+  const hint = $('provider-model');
+  hint.hidden = !option;
+  if (!option) return;
+  if (state.demo) hint.textContent = 'Generazione simulata.';
+  else if (!option.ready) hint.textContent = 'Configura il provider in Account → Configura i provider AI.';
+  else hint.textContent = 'Modello ' + option.model;
+}
+
+function render(result, updatePlan = false) {
+  const selectedProvider = updatePlan ? result.plan.provider : providerSelect.value;
+  const providersChanged = JSON.stringify(state?.generationProviders) !== JSON.stringify(result.generationProviders);
+  state = result;
+  if (providersChanged || updatePlan) {
+    const options = result.generationProviders.map(provider => {
+      const item = node('option', '', provider.label + (provider.ready ? '' : ' · da configurare'));
+      item.value = provider.id;
+      return item;
+    });
+    providerSelect.replaceChildren(...options);
+    providerSelect.value = selectedProvider || result.plan.provider;
+    updateProviderHint();
+  }
+  if (updatePlan) {
+    for (const key of ['channel', 'topic', 'audience', 'tone', 'facts', 'time', 'mode']) planForm.elements[key].value = result.plan[key];
+    planForm.elements.enabled.checked = result.plan.enabled;
+    mediaSelections.plan = result.plan.media;
+    updateMedia('plan');
+    for (const day of planForm.querySelectorAll('[name=day]')) day.checked = result.plan.days.includes(Number(day.value));
+  }
+  $('environment').textContent = result.demo ? 'Modalità prova' : 'Modalità reale';
+  $('plan-state').textContent = result.plan.enabled ? 'Attivo' : 'In pausa';
+  $('sent-label').textContent = result.demo ? 'Invii simulati' : 'Pubblicati';
+  const count = (...statuses) => result.posts.filter(post => statuses.includes(post.status)).length;
+  $('draft-count').textContent = count('draft');
+  $('queue-count').textContent = count('queued', 'publishing');
+  $('sent-count').textContent = count('published', 'simulated');
+  for (const [channel, account] of Object.entries(result.accounts)) displayAccount(channel, account);
+  const posts = $('posts');
+  const signature = JSON.stringify(result.posts);
+  if (posts.dataset.rendered !== signature) {
+    posts.dataset.rendered = signature;
+    posts.replaceChildren(...(result.posts.length ? result.posts.map(postCard) : [$('empty').content.cloneNode(true)]));
+  }
+}
+
+function mediaPreview(media, { downloadable = false, reportError = false } = {}) {
+  const container = node('div', 'media-preview');
+  const item = node(media.duration === null ? 'img' : 'video', 'preview-asset');
+  if (media.duration === null) {
+    item.alt = media.name;
+    item.loading = 'lazy';
+  } else {
+    item.controls = true;
+    item.playsInline = true;
+    item.preload = 'metadata';
+    item.setAttribute('aria-label', media.name);
+  }
+  container.append(item, node('p', 'meta', `${media.name} · ${media.width}×${media.height} · ${(media.bytes / 1_000_000).toLocaleString('it-IT', { maximumFractionDigits: 2 })} MB`));
+  if (reportError) {
+    const notice = node('p', 'media-hint error', 'Il browser non riesce ad aprire l’allegato. Puoi scaricarlo e aprirlo sul tuo dispositivo.');
+    notice.hidden = true;
+    notice.setAttribute('role', 'status');
+    item.addEventListener('error', () => {
+      if (!item.hasAttribute('src')) return;
+      item.hidden = true;
+      notice.hidden = false;
+    });
+    container.append(notice);
+  }
+  item.src = `/media/${media.id}`;
+  if (downloadable) {
+    const link = node('a', 'download', 'Scarica il media');
+    link.href = `/media/${media.id}?download`;
+    link.download = media.name;
+    container.append(link);
+  }
+  return container;
+}
+
+function clearPreviewMedia() {
+  const video = previewMedia.querySelector('video');
+  if (video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+  }
+  previewMedia.replaceChildren();
+  previewMedia.hidden = true;
+}
+
+function updatePreviewMedia() {
+  clearPreviewMedia();
+  if (!previewAttachment || !previewMediaToggle.checked) return;
+  previewMedia.append(mediaPreview(previewAttachment, { downloadable: true, reportError: true }));
+  previewMedia.hidden = false;
+}
+
+function openPostPreview({ channel, content, status, due, media, editingDraft = false }) {
+  if (previewDialog.open) return;
+  previewAttachment = media;
+  const mark = $('preview-channel-mark');
+  mark.className = `channel ${channel}`;
+  mark.textContent = { linkedin: 'in', facebook: 'f', instagram: 'IG', tiktok: 'TT' }[channel];
+  $('preview-channel').textContent = channelLabels[channel];
+  const date = due && status === 'queued' ? new Date(due).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  $('preview-status').textContent = [editingDraft ? 'Modifiche non salvate' : statusLabels[status], date].filter(Boolean).join(' · ');
+  const copy = $('preview-copy');
+  copy.textContent = content || (media ? '' : 'Aggiungi testo o un allegato per vedere l’anteprima.');
+  copy.hidden = !copy.textContent;
+  $('preview-media-option').hidden = !media;
+  previewMediaToggle.checked = Boolean(media);
+  previewDialog.showModal();
+  updatePreviewMedia();
+}
+
+previewMediaToggle.addEventListener('change', updatePreviewMedia);
+previewDialog.addEventListener('close', () => {
+  if (previewDialog.open) return;
+  clearPreviewMedia();
+  previewAttachment = undefined;
+});
+
+function selectedChannel(location) {
+  return location === 'plan' ? planForm.elements.channel.value : editing?.channel ?? form.elements.channel.value;
+}
+
+function updateMedia(location) {
+  const channel = selectedChannel(location);
+  const input = $(`${location}-file`);
+  const output = $(`${location}-media`);
+  const hints = state?.mediaHints?.[channel] || '';
+  const instagramNote = channel === 'instagram' && state && !state.instagramPhotos ? ' Per pubblicare un JPG completa la configurazione HTTPS nella guida Instagram.' : '';
+  const planNote = location === 'plan' ? ' Il piano riutilizza lo stesso file.' : '';
+  $(`${location}-media-hint`).textContent = `${hints}${instagramNote}${planNote}`;
+  input.accept = acceptedFiles[channel];
+  if (location === 'plan') {
+    const mode = planForm.elements.mode;
+    mode.querySelector('[value=auto]').disabled = channel === 'tiktok';
+    if (channel === 'tiktok') mode.value = 'draft';
+  } else {
+    form.elements.content.maxLength = ['instagram', 'tiktok'].includes(channel) ? 2200 : 3000;
+  }
+  const media = mediaSelections[location];
+  output.replaceChildren();
+  if (media) {
+    output.append(mediaPreview(media, { downloadable: channel === 'tiktok' }), button('Rimuovi allegato', () => {
+      mediaSelections[location] = null;
+      input.value = '';
+      updateMedia(location);
+    }));
+  }
+}
+
+function changeChannel(location) {
+  const media = mediaSelections[location];
+  const extension = media?.name.split('.').at(-1);
+  if (extension && !acceptedFiles[selectedChannel(location)].split(',').includes(`.${extension}`)) {
+    mediaSelections[location] = null;
+    message('L’allegato precedente non è compatibile con il canale selezionato.', true, location === 'plan' ? $('notice') : $('editor-notice'));
+  }
+  $(`${location}-file`).value = '';
+  updateMedia(location);
+}
+
+function uploadMedia(location, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const notice = location === 'plan' ? $('notice') : $('editor-notice');
+  if (busy) { input.value = ''; return message('Attendi che termini l’operazione in corso e seleziona di nuovo il file.', true, notice); }
+  const channel = selectedChannel(location);
+  const postId = editing?.id;
+  input.value = '';
+  if (file.size > 100_000_000) return message('Il file supera 100 MB.', true, notice);
+  void change(input, async () => {
+    const params = new URLSearchParams({ channel, name: file.name });
+    const response = await fetch(`/api/media?${params}`, { method: 'POST', body: file, headers: { 'X-Studio-Token': studioToken, ...(state ? { 'X-Studio-Mode': String(state.demo) } : {}) } });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Caricamento non riuscito.');
+    if (channel !== selectedChannel(location) || (location === 'editor' && (!editor.open || postId !== editing?.id))) return;
+    mediaSelections[location] = result;
+    updateMedia(location);
+    message('Allegato pronto.', false, notice);
+  }, notice);
+}
+
+function getPlanInput() {
+  const data = new FormData(planForm);
+  const { day, enabled, ...values } = Object.fromEntries(data);
+  return { ...values, days: data.getAll('day').map(Number), enabled: enabled === 'on', mediaId: mediaSelections.plan?.id ?? null };
+}
+
+async function change(trigger, action, target = $('notice')) {
+  if (busy) return;
+  busy = true;
+  revision++;
+  trigger.disabled = true;
+  message('Operazione in corso…', false, target);
+  try { await action(); } catch (error) { message(error.message, true, target); }
+  finally {
+    busy = false;
+    trigger.disabled = false;
+  }
+}
+
+function openEditor(post) {
+  editing = post;
+  form.reset();
+  form.elements.channel.value = post?.channel || planForm.elements.channel.value;
+  form.elements.content.value = post?.content || '';
+  if (post?.due && post.status === 'queued') {
+    const date = new Date(post.due);
+    form.elements.due.value = new Date(post.due - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  }
+  mediaSelections.editor = post?.media ?? null;
+  updateMedia('editor');
+  $('editor-title').textContent = post ? 'Modifica post' : 'Scrivi un post';
+  $('editor-channel').hidden = Boolean(post);
+  for (const id of ['editor-date', 'queue', 'send']) $(id).hidden = !post || post.channel === 'tiktok';
+  message('', false, $('editor-notice'));
+  editor.showModal();
+}
+
+function setPost(trigger, action) {
+  if (!form.reportValidity()) return;
+  const { content, channel, due } = Object.fromEntries(new FormData(form));
+  if (!content.trim() && !mediaSelections.editor) return message('Aggiungi testo o un allegato.', true, $('editor-notice'));
+  if (action === 'schedule' && !due) return message('Scegli data e ora per il post.', true, $('editor-notice'));
+  if (action === 'now' && !state.demo && !window.confirm(`Pubblicare questo post su ${channelLabels[editing.channel]}?`)) return;
+  const postId = editing?.id;
+  const mediaId = mediaSelections.editor?.id ?? null;
+  void change(trigger, async () => {
+    const update = action === 'save' ? { action, content, mediaId } : { action: 'queue', content, mediaId, due: due && action === 'schedule' ? new Date(due).toISOString() : null };
+    render(postId ? await api(`posts/${postId}`, update) : await api('new', { channel, content, mediaId }));
+    editor.close();
+    message(action === 'save' ? 'Bozza salvata.' : action === 'schedule' ? 'Post programmato.' : 'Post messo in coda.');
+  }, $('editor-notice'));
+}
+
+function verify(post, found) {
+  const trigger = document.activeElement;
+  void change(trigger, async () => {
+    render(await api(`posts/${post.id}`, { action: 'verify', found }));
+    message(found ? 'Post registrato come pubblicato.' : 'Post riportato tra le bozze.');
+  });
+}
+
+planForm.addEventListener('submit', event => {
+  event.preventDefault();
+  const input = getPlanInput();
+  if (input.enabled && input.mode === 'auto' && !state?.demo && !window.confirm(`Attivare creazione e pubblicazione automatica su ${channelLabels[input.channel]}?`)) return;
+  void change(event.submitter, async () => { render(await api('plan', input)); message('Piano salvato.'); });
+});
+$('generate').addEventListener('click', event => {
+  void change(event.currentTarget, async () => { render(await api('generate', getPlanInput())); message('Bozza generata.'); });
+});
+$('new-post').addEventListener('click', () => openEditor());
+$('close-editor').addEventListener('click', () => editor.close());
+$('preview-editor').addEventListener('click', () => openPostPreview({
+  channel: selectedChannel('editor'), content: form.elements.content.value.trim(),
+  media: mediaSelections.editor, editingDraft: true,
+}));
+form.addEventListener('submit', event => { event.preventDefault(); setPost(event.submitter, 'save'); });
+$('queue').addEventListener('click', event => setPost(event.currentTarget, 'schedule'));
+$('send').addEventListener('click', event => setPost(event.currentTarget, 'now'));
+
+for (const channel of ['linkedin', 'facebook', 'instagram']) {
+  $(`${channel}-button`).addEventListener('click', event => {
+    if (!state) return;
+    if (state.demo || !state.accounts[channel].configured || (channel === 'linkedin' && !state.linkedinHttps)) {
+      $(`${channel}-guide`).open = true;
+      $(`${channel}-guide`).querySelector('summary').focus();
+      return;
+    }
+    void change(event.currentTarget, async () => {
+      if (state.accounts[channel].ready) {
+        render(await api('disconnect', { channel }));
+        message('Account scollegato.');
+      } else if (channel === 'linkedin') {
+        const { url } = await api('linkedin', {});
+        window.location.assign(url);
+      } else {
+        render(await api(channel, {}));
+        message(`${channelLabels[channel]} collegato.`);
+      }
+    });
+  });
+}
+
+async function refresh(initial = false) {
+  const started = revision;
+  try {
+    const result = await api('status');
+    if (revision === started && !busy) {
+      const modeChanged = state && state.demo !== result.demo;
+      if (modeChanged) {
+        if (previewDialog.open) previewDialog.close();
+        if (editor.open) editor.close();
+      }
+      render(result, initial || !state || modeChanged);
+      if (modeChanged) $('studio-mode').elements.mode.value = result.demo ? 'demo' : 'live';
+    }
+  } catch (error) {
+    if (initial) message(error.message, true);
+  }
+}
+
+planForm.elements.channel.addEventListener('change', () => changeChannel('plan'));
+form.elements.channel.addEventListener('change', () => changeChannel('editor'));
+for (const location of ['plan', 'editor']) {
+  const input = $(`${location}-file`);
+  input.addEventListener('change', () => uploadMedia(location, input));
+}
+
+const configurationNotice = $('config-notice');
+const modeForm = $('studio-mode');
+const configurationForms = [...document.querySelectorAll('form[data-configuration]')];
+
+function buildConfigurationForm(target, fields) {
+  const controls = fields.map(field => {
+    const group = node('div', field.secret ? 'secret-field' : '');
+    const label = node('label', '', field.label);
+    const input = node('input', '');
+    input.name = field.name;
+    input.type = field.secret ? 'password' : field.url ? 'url' : 'text';
+    input.autocomplete = field.secret ? 'new-password' : 'off';
+    input.spellcheck = false;
+    input.maxLength = 4096;
+    if (field.placeholder) input.placeholder = field.placeholder;
+    if (field.pattern) input.pattern = field.pattern;
+    if (!field.secret) input.value = field.value;
+    label.append(input);
+    group.append(label);
+    if (field.secret && field.configured) {
+      label.append(node('small', '', 'Già salvata. Lascia vuoto per mantenerla.'));
+      const removeLabel = node('label', 'check', 'Rimuovi il valore salvato');
+      const remove = node('input', '');
+      remove.type = 'checkbox';
+      remove.name = `remove-${field.name}`;
+      remove.addEventListener('change', () => { input.disabled = remove.checked; });
+      removeLabel.prepend(remove);
+      group.append(removeLabel);
+    }
+    return group;
+  });
+  const submit = node('button', 'secondary small', 'Salva configurazione');
+  submit.type = 'submit';
+  const actions = node('div', 'actions');
+  actions.append(submit);
+  target.replaceChildren(...controls, actions, (() => {
+    const message = node('p', 'form-notice');
+    message.setAttribute('role', 'status');
+    message.hidden = true;
+    return message;
+  })());
+}
+
+function updateHttps(data) {
+  $('linkedin-callback').textContent = data.callback;
+  $('copy-callback').disabled = false;
+  const open = $('open-linkedin-https');
+  open.href = data.httpsOrigin;
+  open.hidden = !data.httpsReady;
+  $('download-linkedin-cert').hidden = !data.certificateAvailable;
+  $('linkedin-tls-status').textContent = data.httpsError || (data.httpsReady ? 'HTTPS attivo. Aprilo prima di collegare LinkedIn.' : 'HTTPS locale da attivare.');
+}
+
+async function loadConfiguration() {
+  try {
+    const data = await api('configuration');
+    updateHttps(data);
+    modeForm.elements.mode.value = data.demo ? 'demo' : 'live';
+    modeForm.querySelector('button').disabled = false;
+    for (const target of configurationForms) buildConfigurationForm(target, data.fields[target.dataset.configuration]);
+  } catch (error) { message(error.message, true, configurationNotice); }
+}
+
+modeForm.addEventListener('submit', event => {
+  event.preventDefault();
+  const demo = modeForm.elements.mode.value === 'demo';
+  if (demo === state?.demo) return message('Questa modalità è già attiva.', false, configurationNotice);
+  if (!demo && !window.confirm('Attivare la modalità reale? Verranno ripresi il calendario e gli invii della modalità reale.')) return;
+  void change(event.submitter, async () => {
+    const data = await api('configuration', { group: 'mode', demo });
+    if (editor.open) editor.close();
+    render(data.state, true);
+    updateHttps(data);
+    message(demo ? 'Modalità prova attiva.' : 'Modalità reale attiva.', false, configurationNotice);
+  }, configurationNotice);
+});
+
+for (const target of configurationForms) {
+  target.addEventListener('submit', event => {
+    event.preventDefault();
+    const group = target.dataset.configuration;
+    const formData = new FormData(target);
+    const values = {};
+    for (const input of target.querySelectorAll('input:not([type=checkbox])')) {
+      if (formData.has(`remove-${input.name}`)) values[input.name] = '';
+      else if (input.type !== 'password' || input.value) values[input.name] = input.value;
+    }
+    void change(event.submitter, async () => {
+      const result = await api('configuration', { group, values });
+      buildConfigurationForm(target, result.fields[group]);
+      render(result.state);
+      updateProviderHint();
+      updateHttps(result);
+      message('Configurazione salvata.', false, target.querySelector('.form-notice'));
+    }, target.querySelector('.form-notice'));
+  });
+}
+
+$('copy-callback').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('linkedin-callback').textContent);
+    message('URL di callback copiato.', false, $('linkedin-tls-status'));
+  } catch { message('Seleziona e copia l’URL nel riquadro.', true, $('linkedin-tls-status')); }
+});
+
+function applyHttps(trigger, payload, imported) {
+  void change(trigger, async () => {
+    const result = await api('linkedin-https', payload);
+    updateHttps(result);
+    render(result.state);
+    if (imported) $('import-tls').reset();
+  }, $('linkedin-tls-status'));
+}
+
+$('generate-tls').addEventListener('click', event => applyHttps(event.currentTarget, { action: 'generate' }, false));
+$('import-tls').addEventListener('submit', event => {
+  event.preventDefault();
+  applyHttps(event.submitter, { action: 'import', ...Object.fromEntries(new FormData(event.currentTarget)) }, true);
+});
+
+void loadConfiguration();
+providerSelect.addEventListener('change', updateProviderHint);
+void refresh(true);
+setInterval(() => void refresh(), 5000);
+const connection = new URLSearchParams(window.location.search).get('linkedin');
+const connectionMessages = { connected: 'Profilo LinkedIn collegato.', cancelled: 'Collegamento annullato.', failed: 'Collegamento non riuscito. Verifica credenziali, permessi e URL di callback.', state: 'Sessione di collegamento scaduta. Riparti dal pulsante Collega.' };
+if (connection && Object.hasOwn(connectionMessages, connection)) {
+  message(connectionMessages[connection], connection !== 'connected');
+  window.history.replaceState(null, '', '/#account');
+}
