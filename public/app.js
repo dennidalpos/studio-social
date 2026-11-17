@@ -147,14 +147,18 @@ function updateProviderHint() {
 
 // The web toggle only works with providers that have their own web search (OpenAI, Claude, QwenCloud).
 function updateWebControls() {
-  const supports = (id) => Boolean(state?.generationProviders.find(provider => provider.id === id)?.web);
-  const toggles = [[$('plan-web'), providerSelect.value, $('plan-web-hint')], [$('simple-web'), state?.plan.provider, null]];
-  for (const [input, provider, hint] of toggles) {
+  if (!state) return;
+  const supports = (id) => Boolean(state.generationProviders.find(provider => provider.id === id)?.web);
+  const toggles = [
+    [$('plan-web'), providerSelect.value, $('plan-web-hint'), 'Inserisci i link nel materiale di riferimento. La risposta può richiedere più tempo.', 'Il provider scelto non supporta la ricerca web.'],
+    [$('simple-web'), state.plan.provider, $('simple-web-hint'), '', 'Il provider del piano non supporta la ricerca web. Cambialo nella vista avanzata (Piano) e salva.'],
+  ];
+  for (const [input, provider, hint, on, off] of toggles) {
     const allowed = supports(provider);
     input.disabled = !allowed;
     if (!allowed) input.checked = false;
     input.title = allowed ? '' : 'Il provider AI scelto non supporta la ricerca web.';
-    if (hint) hint.textContent = allowed ? 'Inserisci i link nel materiale di riferimento. La risposta può richiedere più tempo.' : 'Il provider scelto non supporta la ricerca web.';
+    hint.textContent = allowed ? on : off;
   }
 }
 

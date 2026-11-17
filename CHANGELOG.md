@@ -19,6 +19,7 @@
 - Delete posts: **Elimina** on every card and in the editor (with a confirmation that says what happens; for published posts only the local copy goes, the post stays on the social), and **Svuota i post di prova** in demo mode. A deleted post of the recurring plan does not come back the same day.
 
 ### Fixed
+- The **Abilita web** checkboxes were disabled for an OpenAI-compatible service hosted by QwenCloud/DashScope. They are now available for those hosts (sent as `enable_search`), and the simple view says why the toggle is off when the plan's provider has no web search.
 - The top bar marked both Piano and Post when they sit side by side; now only one place is marked (the one chosen from the menu, otherwise Piano).
 
 ### Changed

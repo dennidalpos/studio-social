@@ -42,7 +42,8 @@ const jsonHeaders = { 'Content-Type': 'application/json' };
 const bearer = (key) => ({ ...jsonHeaders, Authorization: `Bearer ${key}` });
 const textBlocks = (blocks, type) => Array.isArray(blocks) ? blocks.filter(block => block?.type === type && typeof block.text === 'string').map(block => block.text).join('\n') : '';
 
-const anthropicVersion = '2026-10-21';
+const qwenHosts = /(^|\.)(qwencloudapi\.com|aliyuncs\.com)$/i;
+const anthropicVersion ='2026-10-21';
 // Ids of models that do not write text (embeddings, speech, images, ...): hidden from the lists.
 const notForText = /embed|whisper|tts|dall-e|moderation|transcribe|realtime|audio|image|imagen|veo|aqa|davinci|babbage|rerank/i;
 
@@ -89,6 +90,9 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
       try { config.endpoint = compatibleUrl(config.base); }
       catch { config.endpointProblem = true; }
     }
+    // A compatible service hosted by QwenCloud/DashScope has the same web search switch as the QwenCloud provider.
+    config.qwenHost = Boolean(config.endpoint) && qwenHosts.test(new URL(config.endpoint).hostname);
+    if (config.qwenHost && config.kind === 'chat') config.web = true;
   }
   const defaultProvider = value('LLM_PROVIDER', 'openai');
   if (!Object.hasOwn(definitions, defaultProvider)) throw new Error('LLM_PROVIDER non valido nel file .env.');
@@ -175,7 +179,7 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     const requests = {
       responses: () => [bearer(config.key), { model, store: false, max_output_tokens: 2500, instructions: system, input, ...(web ? { tools: [{ type: 'web_search' }] } : {}) }],
       messages: () => [{ ...bearer(config.key), 'anthropic-version': anthropicVersion }, { model, max_tokens: 6000, output_config: { effort: 'low' }, system, messages: messages.slice(1), ...(web ? { tools: claudeTools } : {}) }],
-      chat: () => [bearer(config.key), { model, messages, ...(selected === 'qwen' ? { max_tokens: 2500 } : {}), ...(selected === 'qwen' && web ? { enable_search: true } : {}), ...(selected === 'qwen' && model === 'qwen3.7-plus' ? { enable_thinking: false } : {}), ...(selected === 'gemini' ? { max_completion_tokens: 4000 } : {}) }],
+      chat: () => [bearer(config.key), { model, messages, ...(selected === 'qwen' ? { max_tokens: 2500 } : {}), ...(web && (selected === 'qwen' || config.qwenHost) ? { enable_search: true } : {}), ...(selected === 'qwen' && model === 'qwen3.7-plus' ? { enable_thinking: false } : {}), ...(selected === 'gemini' ? { max_completion_tokens: 4000 } : {}) }],
       agent: () => [{ ...jsonHeaders, 'x-goog-api-key': config.key }, { agent: value('ANTIGRAVITY_AGENT', 'antigravity-preview-05-2026'), input, system_instruction: system, tools: [], agent_config: { type: 'antigravity', model, max_total_tokens: 12_000 } }],
     };
     const [headers, body] = requests[config.kind]();

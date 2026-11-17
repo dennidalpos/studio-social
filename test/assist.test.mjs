@@ -61,6 +61,19 @@ test('web search is refused for providers without it, and the options say which 
   assert.deepEqual(flags, { openai: true, claude: true, qwen: true, gemini: false, antigravity: false, compatible: false });
 });
 
+test('a compatible service hosted by QwenCloud gets the web switch, others do not', async () => {
+  const qwenCompat = { ...compat, COMPAT_BASE_URL: 'https://token-plan.maas.qwencloudapi.com/compatible-mode/v1' };
+  const ai = create(qwenCompat, chat('Post'));
+  assert.equal(ai.options.find(option => option.id === 'compatible').web, true);
+  await ai.compose({ provider: 'compatible', prompt: 'p', channel: 'linkedin', web: true });
+  assert.equal(ai.calls[0].url, 'https://token-plan.maas.qwencloudapi.com/compatible-mode/v1/chat/completions');
+  assert.equal(ai.calls[0].body.enable_search, true);
+  const dashscope = create({ ...compat, COMPAT_BASE_URL: 'https://dashscope.aliyuncs.com/compatible-mode/v1' }, chat('Post'));
+  assert.equal(dashscope.options.find(option => option.id === 'compatible').web, true);
+  const other = create({ ...compat, COMPAT_BASE_URL: 'https://notqwencloudapi.com.evil.example/v1' }, chat('Post'));
+  assert.equal(other.options.find(option => option.id === 'compatible').web, false);
+});
+
 test('Claude: continues after pause_turn and returns only the text after the last tool result', async () => {
   const ai = create({ ANTHROPIC_API_KEY: 'k' }, (call) => call === 1
     ? claude([{ type: 'text', text: 'Cerco…' }, { type: 'server_tool_use', id: 's1', name: 'web_search', input: {} }], 'pause_turn')
