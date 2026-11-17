@@ -20,8 +20,8 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: `http://localhost:${port}`,
-    // Edge ships with Windows. Set E2E_CHANNEL=chrome (or "" to use Playwright's own Chromium) to change it.
-    channel: process.env.E2E_CHANNEL ?? 'msedge',
+    // Edge ships with Windows. Set E2E_CHANNEL=chrome (or an empty value to use Playwright's own Chromium) to change it.
+    channel: process.env.E2E_CHANNEL === undefined ? 'msedge' : process.env.E2E_CHANNEL || undefined,
     trace: 'retain-on-failure',
   },
   webServer: {
