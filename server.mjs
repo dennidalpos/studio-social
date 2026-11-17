@@ -320,6 +320,8 @@ function redirect(res, result) {
 
 const files = {
   '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'],
+  '/fonts/dm-sans-latin-wght-normal.woff2': ['fonts/dm-sans-latin-wght-normal.woff2', 'font/woff2'],
+  '/fonts/instrument-serif-latin-400-normal.woff2': ['fonts/instrument-serif-latin-400-normal.woff2', 'font/woff2'],
   '/favicon.svg': ['favicon.svg', 'image/svg+xml'], '/favicon.ico': ['favicon.svg', 'image/svg+xml'],
 };
 

@@ -13,5 +13,8 @@
 - Hourly cleanup of media no post or plan uses (older than 24 hours).
 - "Elenca modelli" button next to every model field in the provider settings: it asks the provider which models the key can use and fills the field from a list. Unit tests (`npm test`) cover the model listing.
 
+### Changed
+- Interface: borders of inputs and buttons now reach 3:1 contrast; the section menu stays visible on phones and touch layouts use 44px targets; DM Sans and Instrument Serif are bundled in `public/fonts/` (SIL OFL, licences included); colours are tokens and the page follows the system dark scheme.
+
 ### Fixed
 - Claude generations no longer fail when thinking tokens use up `max_tokens` (low effort, 6000 tokens).

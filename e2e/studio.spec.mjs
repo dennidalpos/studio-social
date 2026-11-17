@@ -189,3 +189,29 @@ test('asks for the API key before listing models', async ({ page }) => {
   await expect(openai.locator('.form-notice')).toContainText('Inserisci la chiave API');
   await expect(openai.getByLabel(/Modelli disponibili/)).toBeHidden();
 });
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test('keeps the section menu, does not scroll sideways and has 44px targets', async ({ page }) => {
+    await expect(page.getByRole('navigation', { name: 'Navigazione' })).toBeVisible();
+    await page.getByRole('link', { name: 'Account' }).click();
+    await expect(page.locator('#account')).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBe(0);
+    const short = await page.evaluate(() => [...document.querySelectorAll('button, select, summary, input:not([type=hidden]):not([type=checkbox])')]
+      .filter((element) => { const box = element.getBoundingClientRect(); return box.width && box.height && box.height < 43.5; })
+      .map((element) => element.textContent.trim().slice(0, 20) || element.name));
+    expect(short).toEqual([]);
+  });
+});
+
+test.describe('dark scheme', () => {
+  test.use({ colorScheme: 'dark' });
+
+  test('uses the dark palette and still loads its fonts', async ({ page }) => {
+    await expect(page.locator('html')).toHaveCSS('background-color', 'rgb(19, 25, 21)');
+    await expect(page.getByRole('heading', { name: /Calendario/ })).toHaveCSS('color', 'rgb(232, 237, 229)');
+    await page.evaluate(() => document.fonts.ready);
+    expect(await page.evaluate(() => [...document.fonts].filter((font) => font.status === 'loaded').map((font) => font.family).sort())).toEqual(['DM Sans', 'Instrument Serif']);
+  });
+});
