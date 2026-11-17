@@ -33,29 +33,41 @@ $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $keyFile = Join-Path $PSScriptRoot '.data\access.key'
 
+# Listening TCP ports with their process id. netstat answers in about 0.1 s, where Get-NetTCPConnection takes seconds.
+# A listening line has a foreign address ending in :0; the state word is localized, so it is not used.
+function Get-Listeners {
+  @(netstat.exe -ano -p TCP 2>$null | ForEach-Object {
+    $f = ($_ -split '\s+') | Where-Object { $_ }
+    if ($f.Count -ge 5 -and $f[0] -eq 'TCP' -and $f[2] -match ':0$' -and $f[1] -match ':(\d+)$') {
+      [pscustomobject]@{ Port = [int]$Matches[1]; Pid = [int]$f[-1] }
+    }
+  })
+}
+
 function Get-Instances {
-  $listening = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue)
+  $listening = Get-Listeners
   @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -match 'server\.mjs' } |
     ForEach-Object {
       $id = $_.ProcessId
       [pscustomobject]@{
         Pid     = $id
-        Port    = (($listening | Where-Object OwningProcess -eq $id | Select-Object -ExpandProperty LocalPort -Unique) -join ', ')
+        Port    = (($listening | Where-Object Pid -eq $id | Select-Object -ExpandProperty Port -Unique | Sort-Object) -join ', ')
         Started = $_.CreationDate
       }
     })
 }
 
 function Get-PortOwner([int]$port) {
-  $connection = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+  $connection = Get-Listeners | Where-Object Port -eq $port | Select-Object -First 1
   if (-not $connection) { return $null }
-  $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($connection.OwningProcess)" -ErrorAction SilentlyContinue
-  [pscustomobject]@{ Pid = $connection.OwningProcess; Name = $process.Name; Command = $process.CommandLine }
+  $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($connection.Pid)" -ErrorAction SilentlyContinue
+  [pscustomobject]@{ Pid = $connection.Pid; Name = $process.Name; Command = $process.CommandLine }
 }
 
 function Get-FreePort([int]$from) {
-  while (Get-NetTCPConnection -LocalPort $from -State Listen -ErrorAction SilentlyContinue) { $from++ }
+  $used = (Get-Listeners).Port
+  while ($used -contains $from) { $from++ }
   $from
 }
 
