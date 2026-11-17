@@ -134,6 +134,13 @@ function postCard(post) {
   return article;
 }
 
+// Under the AI button of the simple view: which service writes the post and whether it is ready.
+function updateSimpleAi() {
+  const option = state?.generationProviders.find(provider => provider.id === state.plan.provider);
+  if (!option) return;
+  $('simple-ai-status').textContent = state.demo ? 'Prova: il testo scritto dall’AI è di esempio.' : option.ready ? `Servizio AI: ${option.label} · ${option.model}` : `Servizio AI: ${option.label} · da configurare`;
+}
+
 function updateProviderHint() {
   const option = state?.generationProviders.find(provider => provider.id === providerSelect.value);
   const hint = $('provider-model');
@@ -151,7 +158,7 @@ function updateWebControls() {
   const supports = (id) => Boolean(state.generationProviders.find(provider => provider.id === id)?.web);
   const toggles = [
     [$('plan-web'), providerSelect.value, $('plan-web-hint'), 'Inserisci i link nel materiale di riferimento. La risposta può richiedere più tempo.', 'Il provider scelto non supporta la ricerca web.'],
-    [$('simple-web'), state.plan.provider, $('simple-web-hint'), '', 'Il provider del piano non supporta la ricerca web. Cambialo nella vista avanzata (Piano) e salva.'],
+    [$('simple-web'), state.plan.provider, $('simple-web-hint'), '', 'Questo servizio AI non supporta la ricerca web. Scegline un altro in «Configura l’AI».'],
   ];
   for (const [input, provider, hint, on, off] of toggles) {
     const allowed = supports(provider);
@@ -185,6 +192,7 @@ function render(result, updatePlan = false) {
     for (const day of planForm.querySelectorAll('[name=day]')) day.checked = result.plan.days.includes(Number(day.value));
   }
   updateWebControls();
+  updateSimpleAi();
   $('clear-demo').hidden = !result.demo || !result.posts.some(post => deletable.includes(post.status));
   const environment = $('environment');
   environment.textContent = result.demo ? 'Prova · non pubblica nulla' : 'Pubblicazione attiva';
@@ -568,6 +576,10 @@ function modelPicker(target, input, label) {
   return row;
 }
 
+let configurationFields = {};
+// Which settings group holds each AI service (Gemini and Antigravity share one).
+const providerGroups = { openai: 'openai', claude: 'claude', qwen: 'qwen', gemini: 'google', antigravity: 'google', compatible: 'compatible' };
+
 function buildConfigurationForm(target, fields) {
   const controls = fields.map(field => {
     const group = node('div', field.secret ? 'secret-field' : '');
@@ -624,6 +636,7 @@ async function loadConfiguration() {
     updateHttps(data);
     modeForm.elements.mode.value = data.demo ? 'demo' : 'live';
     modeForm.querySelector('button').disabled = false;
+    configurationFields = data.fields;
     for (const target of configurationForms) buildConfigurationForm(target, data.fields[target.dataset.configuration]);
   } catch (error) { message(error.message, true, configurationNotice); }
 }
@@ -649,7 +662,9 @@ for (const target of configurationForms) {
     const values = collectValues(target);
     void change(event.submitter, async () => {
       const result = await api('configuration', { group, values });
-      buildConfigurationForm(target, result.fields[group]);
+      configurationFields = result.fields;
+      // The same group can appear twice (advanced settings and the simple view's AI dialog).
+      for (const form of document.querySelectorAll('form[data-configuration]')) if (form.dataset.configuration === group) buildConfigurationForm(form, result.fields[group]);
       render(result.state);
       updateProviderHint();
       updateHttps(result);
@@ -657,6 +672,52 @@ for (const target of configurationForms) {
     }, target.querySelector('.form-notice'));
   });
 }
+
+// Simple view: choose the AI service and save its key without going to the advanced view.
+const aiDialog = $('ai-dialog');
+const aiForm = $('ai-form');
+const aiService = $('ai-service');
+
+function showAiForm() {
+  const group = providerGroups[aiService.value];
+  aiForm.dataset.configuration = group;
+  if (configurationFields[group]) buildConfigurationForm(aiForm, configurationFields[group]);
+}
+
+function openAiDialog() {
+  if (!state || aiDialog.open) return;
+  aiService.replaceChildren(...state.generationProviders.map(provider => {
+    const item = node('option', '', provider.label + (provider.ready || state.demo ? '' : ' · da configurare'));
+    item.value = provider.id;
+    return item;
+  }));
+  aiService.value = state.plan.provider;
+  showAiForm();
+  aiDialog.showModal();
+}
+
+aiService.addEventListener('change', showAiForm);
+$('simple-ai-setup').addEventListener('click', openAiDialog);
+$('close-ai').addEventListener('click', () => aiDialog.close());
+aiDialog.addEventListener('close', updateSimpleAi);
+aiForm.addEventListener('submit', event => {
+  event.preventDefault();
+  const group = aiForm.dataset.configuration;
+  const provider = aiService.value;
+  const values = collectValues(aiForm);
+  void change(event.submitter, async () => {
+    const result = await api('configuration', { group, values });
+    configurationFields = result.fields;
+    for (const form of document.querySelectorAll('form[data-configuration]')) if (form.dataset.configuration === group) buildConfigurationForm(form, result.fields[group]);
+    render(result.state);
+    updateHttps(result);
+    render(await api('provider', { provider }));
+    providerSelect.value = provider;
+    updateProviderHint();
+    updateSimpleAi();
+    message('Servizio AI salvato.', false, aiForm.querySelector('.form-notice'));
+  }, aiForm.querySelector('.form-notice'));
+});
 
 $('copy-callback').addEventListener('click', async () => {
   try {
@@ -843,6 +904,11 @@ simpleText.addEventListener('input', () => { simpleMessage(''); renderSimple(); 
 $('simple-ai').addEventListener('click', async event => {
   const prompt = $('simple-prompt').value.trim();
   if (!prompt) return simpleMessage('Scrivi cosa vuoi dire all’AI.', true);
+  const service = state?.generationProviders.find(provider => provider.id === state.plan.provider);
+  if (state && !state.demo && !service?.ready) {
+    simpleMessage('Prima configura il servizio AI: scegli il servizio e inserisci la chiave.', true);
+    return openAiDialog();
+  }
   if (simpleText.value.trim() && !window.confirm(t('Sostituire il testo attuale con quello scritto dall’AI?'))) return;
   const button = event.currentTarget;
   button.disabled = true;

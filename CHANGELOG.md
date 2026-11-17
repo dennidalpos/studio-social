@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Set up the AI from the simple view: **Configura l’AI** opens a dialog to choose the AI service, save its key and model (with the model list and the wait time) without going to the advanced view. A line under the AI button shows the service in use and whether it is ready; **Scrivi con l’AI** opens the dialog instead of failing when the service is not set up.
 - Interface language: Italian and English, with an IT/EN selector (first visit follows the browser language). Generated posts follow the language chosen for the plan or draft.
 - `npm run browser`: optional separate Electron window with a persistent profile in `.data/browser`, a Socials menu, https-only navigation and denied permission prompts. The sign-in stays the person's own action.
 - Simple view (default): write a post, see the preview with the per-social character count, then copy it and open the social in the user's own logged-in browser (LinkedIn opens with the text prefilled). No accounts, keys or scheduling. The draft and the choice are remembered in the browser; a button switches to the advanced view (plan, scheduling, API publishing, accounts).

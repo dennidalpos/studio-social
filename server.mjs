@@ -445,6 +445,12 @@ async function serve(req, res) {
       const input = { ...brief(data, true), language: data.language === 'en' ? 'en' : 'it' };
       const media = selectMedia(data.mediaId, input.channel);
       addPost(input.channel, await service.generate({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), web: data.web === true, recent: recentPosts(input.channel) }), 'draft', null, media?.id ?? null);
+    } else if (path === '/api/provider') {
+      // The AI service used by the plan and by the simple view; the rest of the plan stays as it is.
+      const provider = service.generation.validate(data.provider, false);
+      const plan = getPlan();
+      const hasWeb = service.generation.options.find(option => option.id === provider)?.web;
+      set('plan', { ...plan, provider, web: Boolean(plan.web && hasWeb) });
     } else if (path === '/api/clear-demo') {
       clearDemoPosts();
     } else if (path === '/api/new') {

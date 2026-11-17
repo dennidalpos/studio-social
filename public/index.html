@@ -52,7 +52,9 @@
           <div class="actions">
             <button type="button" id="simple-ai">Scrivi con l’AI</button>
             <label class="check"><input type="checkbox" id="simple-web"> Abilita web</label>
+            <button class="secondary small" type="button" id="simple-ai-setup" aria-haspopup="dialog">Configura l’AI</button>
           </div>
+          <small id="simple-ai-status" aria-live="polite"></small>
           <small id="simple-web-hint" aria-live="polite"></small>
           <small id="simple-ai-hint">L’AI scrive il post nei limiti del social scelto. Con «Abilita web» legge i link che inserisci nella richiesta.</small>
           <label>Testo del post<textarea id="simple-text" rows="10" maxlength="6000" placeholder="Scrivi qui il tuo post" aria-describedby="simple-count"></textarea></label>
@@ -238,6 +240,13 @@
       <p id="editor-notice" role="status" hidden></p>
       <div class="actions"><button type="submit">Salva bozza</button><button class="secondary" type="button" id="preview-editor" aria-haspopup="dialog">Anteprima</button><button class="secondary" type="button" id="queue">Programma</button><button class="secondary" type="button" id="send">Pubblica ora</button><button class="secondary danger" type="button" id="delete-post" hidden>Elimina</button></div>
     </form>
+  </dialog>
+  <dialog id="ai-dialog" aria-labelledby="ai-dialog-title">
+    <div class="section-heading"><h2 id="ai-dialog-title">Configura l’AI</h2><button type="button" class="secondary small" id="close-ai">Chiudi</button></div>
+    <p>Scegli il servizio AI e inserisci la tua chiave. La chiave resta nella copia locale di Studio Social.</p>
+    <label>Servizio AI<select id="ai-service"></select></label>
+    <form id="ai-form" autocomplete="off"></form>
+    <details class="account-guide"><summary>Il modello è lento?</summary><p>Indica quanti minuti attendere la risposta prima di rinunciare.</p><form data-configuration="wait"></form></details>
   </dialog>
   <dialog id="post-preview" aria-labelledby="post-preview-title">
     <div class="section-heading preview-heading">

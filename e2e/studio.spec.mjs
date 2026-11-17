@@ -287,6 +287,26 @@ test('improves the plan fields from generic words and offers the web toggle', as
   await expect(page.locator('#notice')).toHaveText('Piano salvato.');
 });
 
+test('simple: configures the AI service without leaving the simple view', async ({ page }) => {
+  await expect(page.locator('#simple-ai-status')).toContainText('Prova');
+  await page.getByRole('button', { name: 'Configura l’AI' }).click();
+  await expect(page.locator('#ai-dialog')).toBeVisible();
+  await page.locator('#ai-service').selectOption({ label: 'API compatibile OpenAI' });
+  await expect(page.locator('#ai-form [name=COMPAT_MODEL]')).toBeVisible();
+  await page.locator('#ai-form').getByRole('button', { name: 'Salva configurazione' }).click();
+  await expect(page.locator('#ai-form .form-notice')).toHaveText('Servizio AI salvato.');
+  await page.locator('#close-ai').click();
+  await expect(page.locator('#simple-web')).toBeDisabled();
+  await expect(page.locator('#simple-web-hint')).toContainText('non supporta la ricerca web');
+
+  await page.getByRole('button', { name: 'Configura l’AI' }).click();
+  await page.locator('#ai-service').selectOption({ label: 'OpenAI' });
+  await page.locator('#ai-form').getByRole('button', { name: 'Salva configurazione' }).click();
+  await expect(page.locator('#ai-form .form-notice')).toHaveText('Servizio AI salvato.');
+  await page.locator('#close-ai').click();
+  await expect(page.locator('#simple-web')).toBeEnabled();
+});
+
 test('simple: adds a photo, previews it, copies it and drops it when the social does not take it', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.locator('#simple-file').setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: validPng() });

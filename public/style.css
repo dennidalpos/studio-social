@@ -184,3 +184,7 @@ input:not([type=checkbox], [type=radio]), select, textarea { font-weight: 400; }
 
 .lang-select { font: inherit; font-size: .84rem; padding: .42rem .5rem; min-height: 2.75rem; border: 1px solid var(--line, currentColor); border-radius: 10px; background: transparent; color: inherit; }
 @media (max-width: 570px) { .bar { gap: .5rem; } .bar-tools { gap: .4rem; } .lang-select { width: 3.3rem; padding-inline: .3rem; } }
+
+#ai-dialog > label { display: grid; gap: .3rem; }
+#ai-service { margin-bottom: .9rem; }
+#ai-form { margin-bottom: .6rem; }
