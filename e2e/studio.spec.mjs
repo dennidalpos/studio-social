@@ -234,6 +234,40 @@ test('simple: copies the text and opens LinkedIn with the post already written',
   await expect(page.locator('#simple-notice')).toContainText('Testo copiato');
 });
 
+test('simple: the AI button writes the post from a request', async ({ page }) => {
+  await page.getByRole('button', { name: 'Scrivi con l’AI' }).click();
+  await expect(page.locator('#simple-notice')).toHaveText('Scrivi cosa vuoi dire all’AI.');
+  await page.getByLabel('Chiedi all’AI').fill('Annuncia il corso di fotografia');
+  await expect(page.locator('#simple-web')).toBeEnabled();
+  await page.getByRole('button', { name: 'Scrivi con l’AI' }).click();
+  await expect(page.locator('#simple-notice')).toContainText('Testo scritto dall’AI');
+  await expect(page.getByLabel('Testo del post')).toHaveValue(/^Annuncia il corso di fotografia/);
+  await expect(page.locator('#simple-preview')).toContainText('Annuncia il corso di fotografia');
+  await expect(page.getByRole('button', { name: 'Copia e apri LinkedIn' })).toBeEnabled();
+});
+
+test('improves the plan fields from generic words and offers the web toggle', async ({ page }) => {
+  // Earlier tests saved a plan: start from empty fields.
+  for (const name of ['topic', 'audience', 'tone', 'facts']) await page.locator(`#plan [name=${name}]`).fill('');
+  await page.getByRole('button', { name: 'Migliora i campi con l’AI' }).click();
+  await expect(page.locator('#notice')).toHaveText('Scrivi almeno una parola in uno dei campi.');
+  await page.getByLabel('Temi').fill('progetti');
+  await page.getByRole('button', { name: 'Migliora i campi con l’AI' }).click();
+  await expect(page.locator('#notice')).toHaveText('Campi migliorati. Controllali e salva il piano.');
+  await expect(page.locator('#plan [name=audience]')).not.toHaveValue('');
+  await expect(page.locator('#plan [name=tone]')).not.toHaveValue('');
+  const web = page.locator('#plan-web');
+  await expect(web).toBeEnabled();
+  await web.check();
+  await page.getByRole('button', { name: 'Salva piano' }).click();
+  await expect(page.locator('#notice')).toHaveText('Piano salvato.');
+  await page.reload();
+  await expect(page.locator('#plan-web')).toBeChecked();
+  await page.locator('#plan-web').uncheck();
+  await page.getByRole('button', { name: 'Salva piano' }).click();
+  await expect(page.locator('#notice')).toHaveText('Piano salvato.');
+});
+
 test('simple: the draft and the chosen view are remembered', async ({ page }) => {
   await page.getByLabel('Testo del post').fill('Bozza da ritrovare');
   await page.reload();

@@ -120,6 +120,20 @@ function updateProviderHint() {
   if (state.demo) hint.textContent = 'Generazione simulata.';
   else if (!option.ready) hint.textContent = 'Configura il provider in Account → Configura i provider AI.';
   else hint.textContent = 'Modello ' + option.model;
+  updateWebControls();
+}
+
+// The web toggle only works with providers that have their own web search (OpenAI, Claude, QwenCloud).
+function updateWebControls() {
+  const supports = (id) => Boolean(state?.generationProviders.find(provider => provider.id === id)?.web);
+  const toggles = [[$('plan-web'), providerSelect.value, $('plan-web-hint')], [$('simple-web'), state?.plan.provider, null]];
+  for (const [input, provider, hint] of toggles) {
+    const allowed = supports(provider);
+    input.disabled = !allowed;
+    if (!allowed) input.checked = false;
+    input.title = allowed ? '' : 'Il provider AI scelto non supporta la ricerca web.';
+    if (hint) hint.textContent = allowed ? 'Inserisci i link nel materiale di riferimento. La risposta può richiedere più tempo.' : 'Il provider scelto non supporta la ricerca web.';
+  }
 }
 
 function render(result, updatePlan = false) {
@@ -139,10 +153,12 @@ function render(result, updatePlan = false) {
   if (updatePlan) {
     for (const key of ['channel', 'topic', 'audience', 'tone', 'facts', 'time', 'mode']) planForm.elements[key].value = result.plan[key];
     planForm.elements.enabled.checked = result.plan.enabled;
+    planForm.elements.web.checked = Boolean(result.plan.web);
     mediaSelections.plan = result.plan.media;
     updateMedia('plan');
     for (const day of planForm.querySelectorAll('[name=day]')) day.checked = result.plan.days.includes(Number(day.value));
   }
+  updateWebControls();
   const environment = $('environment');
   environment.textContent = result.demo ? 'Demo · invii simulati' : 'Reale · pubblica davvero';
   environment.classList.toggle('live', !result.demo);
@@ -306,8 +322,8 @@ function uploadMedia(location, input) {
 
 function getPlanInput() {
   const data = new FormData(planForm);
-  const { day, enabled, ...values } = Object.fromEntries(data);
-  return { ...values, language: language(), days: data.getAll('day').map(Number), enabled: enabled === 'on', mediaId: mediaSelections.plan?.id ?? null };
+  const { day, enabled, web, ...values } = Object.fromEntries(data);
+  return { ...values, language: language(), days: data.getAll('day').map(Number), enabled: enabled === 'on', web: web === 'on', mediaId: mediaSelections.plan?.id ?? null };
 }
 
 async function change(trigger, action, target = $('notice')) {
@@ -373,6 +389,14 @@ planForm.addEventListener('submit', event => {
 });
 $('generate').addEventListener('click', event => {
   void change(event.currentTarget, async () => { render(await api('generate', getPlanInput())); message('Bozza generata.'); });
+});
+$('improve').addEventListener('click', event => {
+  const input = getPlanInput();
+  void change(event.currentTarget, async () => {
+    const { fields } = await api('improve', input);
+    for (const key of ['topic', 'audience', 'tone', 'facts']) planForm.elements[key].value = fields[key];
+    message('Campi migliorati. Controllali e salva il piano.');
+  });
 });
 $('new-post').addEventListener('click', () => openEditor());
 $('close-editor').addEventListener('click', () => editor.close());
@@ -741,6 +765,21 @@ simpleForm.addEventListener('submit', event => { event.preventDefault(); void co
 $('simple-copy').addEventListener('click', () => void copyAndOpen(false));
 $('simple-clear').addEventListener('click', () => { simpleText.value = ''; simpleMessage(''); renderSimple(); simpleText.focus(); });
 simpleText.addEventListener('input', () => { simpleMessage(''); renderSimple(); });
+$('simple-ai').addEventListener('click', async event => {
+  const prompt = $('simple-prompt').value.trim();
+  if (!prompt) return simpleMessage('Scrivi cosa vuoi dire all’AI.', true);
+  if (simpleText.value.trim() && !window.confirm(t('Sostituire il testo attuale con quello scritto dall’AI?'))) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  simpleMessage('L’AI sta scrivendo…');
+  try {
+    const { text } = await api('compose', { channel: selectedSocial(), prompt, web: $('simple-web').checked && !$('simple-web').disabled, language: language() });
+    simpleText.value = text;
+    renderSimple();
+    simpleMessage('Testo scritto dall’AI. Controllalo e modificalo prima di pubblicare.');
+  } catch (error) { simpleMessage(error.message, true); }
+  finally { button.disabled = false; }
+});
 simpleForm.addEventListener('change', event => { if (event.target.name === 'simple-channel') { simpleMessage(''); renderSimple(); } });
 try {
   const saved = JSON.parse(localStorage.getItem(draftKey) ?? 'null');

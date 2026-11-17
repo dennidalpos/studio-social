@@ -12,9 +12,9 @@ Requirements: [Node.js](https://nodejs.org/) 24 or later. No runtime dependencie
 | --- | --- |
 | ![Simple view: post editor with preview and the Copy and open button](docs/images/simple-view.png) | ![Advanced view: editorial calendar with plan, drafts and demo-mode badge](docs/images/advanced-view.png) |
 
-**Simple view** is for people who only have a personal login on the social. No account to connect, no key, no scheduling. Choose where to publish, write the text and check the preview with the character count for that social. **Copia e apri** (copy and open) copies the text and opens the social in your own, already signed-in browser. On LinkedIn the post arrives prefilled; on Facebook, Instagram and TikTok you paste with Ctrl+V. Add photos or videos on the social and press Publish yourself: publishing stays your own action. The draft and the chosen social are remembered in this browser.
+**Simple view** is for people who only have a personal login on the social. No account to connect, no key, no scheduling. Choose where to publish, write the text and check the preview with the character count for that social. **Copia e apri** (copy and open) copies the text and opens the social in your own, already signed-in browser. On LinkedIn the post arrives prefilled; on Facebook, Instagram and TikTok you paste with Ctrl+V. Add photos or videos on the social and press Publish yourself: publishing stays your own action. The draft and the chosen social are remembered in this browser. If an AI provider is configured, **Scrivi con l’AI** writes the post from a short request within the limit of the chosen social; with **Abilita web** it also reads the links in the request (OpenAI, Claude and QwenCloud only).
 
-**Advanced view** (button at the top right) is for business profiles and Pages with API access: recurring plan, scheduling, automatic publishing and account connection. The choice is remembered in the browser.
+**Advanced view** (button at the top right) is for business profiles and Pages with API access: recurring plan, scheduling, automatic publishing and account connection. **Migliora i campi con l’AI** turns generic words in the plan fields into complete texts for you to check. The choice is remembered in the browser.
 
 ```mermaid
 flowchart LR
@@ -130,7 +130,7 @@ Stop the app. Extract the new version into a new folder and move the `.data/` fo
 
 ```sh
 npm test            # 6 unit tests
-npm run test:e2e    # 26 Playwright tests (demo mode, Microsoft Edge by default)
+npm run test:e2e    # 28 Playwright tests (demo mode, Microsoft Edge by default)
 ```
 
 `npm run test:e2e` needs `npm install` first and FFmpeg for the media tests. Set `E2E_CHANNEL=chrome`, or an empty value to use Playwright's own Chromium.

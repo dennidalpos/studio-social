@@ -48,6 +48,12 @@
             <label><input type="radio" name="simple-channel" value="instagram"><span>Instagram</span></label>
             <label><input type="radio" name="simple-channel" value="tiktok"><span>TikTok</span></label>
           </div></fieldset>
+          <label>Chiedi all’AI<textarea id="simple-prompt" rows="3" maxlength="1500" placeholder="Es. un post per annunciare il nuovo corso di fotografia, tono amichevole" aria-describedby="simple-ai-hint"></textarea></label>
+          <div class="actions">
+            <button type="button" id="simple-ai">Scrivi con l’AI</button>
+            <label class="check"><input type="checkbox" id="simple-web"> Abilita web</label>
+          </div>
+          <small id="simple-ai-hint">L’AI scrive il post nei limiti del social scelto. Con «Abilita web» legge i link che inserisci nella richiesta.</small>
           <label>Testo del post<textarea id="simple-text" rows="10" maxlength="6000" placeholder="Scrivi qui il tuo post" aria-describedby="simple-count"></textarea></label>
           <p class="counter" id="simple-count" aria-live="polite"></p>
           <div class="actions">
@@ -84,6 +90,9 @@
             <label>Tono<input name="tone" maxlength="150" placeholder="Es. professionale"></label>
           </div>
           <label>Materiale di riferimento<textarea name="facts" rows="3" maxlength="4500" placeholder="Note, esempi ed esperienze da cui partire"></textarea></label>
+          <div class="actions"><button class="secondary" type="button" id="improve">Migliora i campi con l’AI</button></div>
+          <label class="check"><input type="checkbox" name="web" id="plan-web" aria-describedby="plan-web-hint"> Abilita web: l’AI legge i link inseriti e cerca fonti</label>
+          <small id="plan-web-hint" aria-live="polite"></small>
           <div class="media-field">
             <label>Allegato del piano<input type="file" id="plan-file" aria-describedby="plan-media-hint"></label>
             <p class="media-hint" id="plan-media-hint"></p>

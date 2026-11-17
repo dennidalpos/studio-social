@@ -9,7 +9,7 @@
     Pubblico: 'Audience', Tono: 'Tone', Canale: 'Channel', Temi: 'Topics', Giorni: 'Days', Testo: 'Text', Svuota: 'Clear',
     Attivo: 'On', 'In pausa': 'Paused', Collega: 'Connect', Scollega: 'Disconnect', Configura: 'Set up', Lingua: 'Language',
     'Caricamento': 'Loading', 'Caricamento…': 'Loading…', Bozza: 'Draft', Pubblicato: 'Published', Pubblicati: 'Published',
-    Programma: 'Schedule', 'Pubblica ora': 'Publish now',
+    Programma: 'Schedule', 'Pubblica ora': 'Publish now', Richiesta: 'Request',
   };
   // Longest phrases first so that a full sentence wins over the words it contains.
   const phrases = [
@@ -211,6 +211,18 @@
     ['Chiave Gemini API', 'Gemini API key'], ['Modello Gemini', 'Gemini model'], ['ID dell’agente Antigravity', 'Antigravity agent ID'], ['Modello Antigravity', 'Antigravity model'],
     ['Chiave API del servizio', 'Service API key'], ['URL base Chat Completions', 'Chat Completions base URL'], ['Identificativo del modello', 'Model identifier'],
     ['Professionale e concreto', 'Professional and practical'],
+    // AI writing, field improvement and web search
+    ['Chiedi all’AI', 'Ask the AI'], ['Scrivi con l’AI', 'Write with AI'], ['Abilita web', 'Enable web'],
+    ['Es. un post per annunciare il nuovo corso di fotografia, tono amichevole', 'E.g. a post announcing the new photography course, friendly tone'],
+    ['L’AI scrive il post nei limiti del social scelto. Con «Abilita web» legge i link che inserisci nella richiesta.', 'The AI writes the post within the limit of the chosen social. With “Enable web” it reads the links you put in the request.'],
+    ['Migliora i campi con l’AI', 'Improve the fields with AI'], ['Abilita web: l’AI legge i link inseriti e cerca fonti', 'Enable web: the AI reads the links you entered and looks for sources'],
+    ['Inserisci i link nel materiale di riferimento. La risposta può richiedere più tempo.', 'Put the links in the reference material. The answer may take longer.'],
+    ['Il provider scelto non supporta la ricerca web.', 'The chosen provider does not support web search.'], ['Il provider AI scelto non supporta la ricerca web.', 'The chosen AI provider does not support web search.'],
+    [' non supporta la ricerca web.', ' does not support web search.'], ['Scrivi cosa vuoi dire all’AI.', 'Write what you want to tell the AI.'],
+    ['Sostituire il testo attuale con quello scritto dall’AI?', 'Replace the current text with the one written by the AI?'], ['L’AI sta scrivendo…', 'The AI is writing…'],
+    ['Testo scritto dall’AI. Controllalo e modificalo prima di pubblicare.', 'Text written by the AI. Check and edit it before publishing.'],
+    ['Campi migliorati. Controllali e salva il piano.', 'Fields improved. Check them and save the plan.'], ['Scrivi almeno una parola in uno dei campi.', 'Write at least one word in one of the fields.'],
+    [' non ha restituito campi utilizzabili. Riprova.', ' did not return usable fields. Try again.'],
     // Fallbacks
     ['Collegamento ', 'Connection '],
   ].filter(([it, en]) => it !== en).sort((a, b) => b[0].length - a[0].length);

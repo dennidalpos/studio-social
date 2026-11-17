@@ -75,7 +75,7 @@ const get = (key) => JSON.parse(db.prepare('SELECT data FROM settings WHERE key 
 const set = (key, value) => db.prepare('INSERT INTO settings VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET data = excluded.data').run(key, JSON.stringify(value));
 const getPlan = () => {
   const plan = get('plan') ?? defaults;
-  return { ...plan, provider: plan.provider ?? service.generation.defaultProvider };
+  return { ...plan, provider: plan.provider ?? service.generation.defaultProvider, web: plan.web === true };
 };
 const mediaKey = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const getMedia = (id) => id ? JSON.parse(db.prepare('SELECT data FROM media WHERE id = ?').get(id)?.data ?? 'null') : null;
@@ -159,6 +159,8 @@ function validatedPlan(data) {
   const result = { ...brief(data, data.enabled), language: data.language === 'en' ? 'en' : 'it', days: [...new Set(data.days)], time: data.time, mode: data.mode, enabled: data.enabled };
   if (result.enabled && !result.days.length) throw new InputError('Scegli almeno un giorno.');
   result.provider = service.generation.validate(data.provider ?? getPlan().provider, result.enabled);
+  result.web = data.web === true;
+  if (result.web && !service.generation.options.find(option => option.id === result.provider)?.web) throw new InputError('Il provider scelto non supporta la ricerca web.');
   const automatic = result.enabled && result.mode === 'auto';
   if (automatic && result.channel === 'tiktok') throw new InputError('Per TikTok scegli la modalità bozze ed esporta i post.');
   result.mediaId = selectMedia(data.mediaId, result.channel, automatic)?.id ?? null;
@@ -392,6 +394,16 @@ async function serve(req, res) {
     const data = await readBody(req);
     if (path === '/api/configuration') return respond(res, 200, updateConfiguration(data));
     if (path === '/api/models') return respond(res, 200, await modelsFor(data));
+    // AI helpers: they only return text; nothing is saved until the user saves it.
+    if (path === '/api/compose') {
+      const channel = channelFrom(data.channel);
+      return respond(res, 200, { text: await service.generation.compose({ provider: service.generation.validate(getPlan().provider), prompt: field(data.prompt, 1500, 'Richiesta', true), channel, language: data.language === 'en' ? 'en' : 'it', web: data.web === true }) });
+    }
+    if (path === '/api/improve') {
+      const input = brief(data, false);
+      if (!input.topic && !input.audience && !input.tone && !input.facts) throw new InputError('Scrivi almeno una parola in uno dei campi.');
+      return respond(res, 200, { fields: await service.generation.improve({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), language: data.language === 'en' ? 'en' : 'it', web: data.web === true }) });
+    }
     if (path === '/api/linkedin-https') return respond(res, 200, await configureHttps(data));
     if (path === '/api/linkedin') {
       if (service.demo || !service.linkedin || !secureReady) throw new InputError('Per collegare LinkedIn attiva la modalità reale e completa credenziali e HTTPS nella guida.');
@@ -413,7 +425,7 @@ async function serve(req, res) {
     } else if (path === '/api/generate') {
       const input = { ...brief(data, true), language: data.language === 'en' ? 'en' : 'it' };
       const media = selectMedia(data.mediaId, input.channel);
-      addPost(input.channel, await service.generate({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), recent: recentPosts(input.channel) }), 'draft', null, media?.id ?? null);
+      addPost(input.channel, await service.generate({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), web: data.web === true, recent: recentPosts(input.channel) }), 'draft', null, media?.id ?? null);
     } else if (path === '/api/new') {
       const channel = channelFrom(data.channel);
       const media = selectMedia(data.mediaId, channel);

@@ -6,6 +6,10 @@
 - Interface language: Italian and English, with an IT/EN selector (first visit follows the browser language). Generated posts follow the language chosen for the plan or draft.
 - `npm run browser`: optional separate Electron window with a persistent profile in `.data/browser`, a Socials menu, https-only navigation and denied permission prompts. The sign-in stays the person's own action.
 - Simple view (default): write a post, see the preview with the per-social character count, then copy it and open the social in the user's own logged-in browser (LinkedIn opens with the text prefilled). No accounts, keys or scheduling. The draft and the choice are remembered in the browser; a button switches to the advanced view (plan, scheduling, API publishing, accounts).
+- AI in the simple view: write a request, press **Scrivi con l’AI** and the post is written for the chosen social within its character limit (uses the plan's AI provider; nothing is saved or published).
+- AI in the advanced view: **Migliora i campi con l’AI** turns generic words in Temi, Pubblico, Tono and Materiale into complete texts you can check before saving the plan. Links you typed are kept.
+- **Abilita web** toggle (simple request and plan): the AI reads the links you enter and can search for sources, using the provider's own web search (OpenAI, Claude, QwenCloud). Providers without it keep the toggle off. The plan stores the choice.
+- `AI_TIMEOUT_MINUTES` (also in Account → Configura i provider AI): how long to wait for slow models. Failed AI calls now log the real cause (provider, host, error code) without keys.
 - Sticky top bar with the current section marked, back-to-top button, and page notices that stay visible under the bar.
 - `run.ps1`: installs and starts the app, with an arrow-key menu to start in demo or real mode, stop running instances or pick another port.
 
