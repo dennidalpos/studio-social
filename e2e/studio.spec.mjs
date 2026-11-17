@@ -316,7 +316,8 @@ test.describe('simple view on a phone', () => {
       .filter((element) => { const box = element.getBoundingClientRect(); return box.width && box.height && box.height < 43.5; })
       .map((element) => element.textContent.trim().slice(0, 20) || element.name));
     expect(short).toEqual([]);
-    await expect(page.getByRole('button', { name: 'Passa alla modalità avanzata' })).toBeVisible();
+    expect(await page.locator('#view-toggle').innerText()).toBe('Vista avanzata');
+    expect(await page.locator('.bar').evaluate((bar) => bar.getBoundingClientRect().height)).toBeLessThan(80);
   });
 });
 

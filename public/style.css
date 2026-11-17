@@ -174,5 +174,6 @@ body[data-view="simple"] .advanced-only, body[data-view="advanced"] .simple-only
 .simple-steps li { margin: .4rem 0; color: var(--muted); }
 #simple-notice { background: var(--tint); padding: .65rem .8rem; border-radius: 6px; margin: 0; }
 #simple-notice.error { background: var(--error-bg); }
-@media (max-width: 570px) { .bar-tools { margin-left: auto; } .bar .long { display: none; } }
+#view-toggle .short { display: none; }
+@media (max-width: 570px) { #view-toggle .short { display: inline; } .bar-tools { margin-left: auto; } .bar .long { display: none; } }
 input:not([type=checkbox], [type=radio]), select, textarea { font-weight: 400; }
