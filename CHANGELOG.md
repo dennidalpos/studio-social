@@ -24,6 +24,8 @@
 - The top bar marked both Piano and Post when they sit side by side; now only one place is marked (the one chosen from the menu, otherwise Piano).
 
 ### Changed
+- Plain names for the two modes, in Italian and English: **Prova** / Practice (nothing is published) and **Pubblicazione** / Publishing (real accounts). The top-bar badge reads "Prova · non pubblica nulla" or "Pubblicazione attiva"; the setting is "Come vuoi usare Studio Social?" with "Salva scelta". "Ambiente", "Modalità demo/reale" and "pubblica davvero" are gone; "modalità" now only means the simple/advanced view.
+- Dark theme: neutral warm charcoal surfaces with green kept for buttons, links and accents (button text colour and hover are now tokens).
 - "Modalità prova" is now "Demo · invii simulati" (and "Reale · pubblica davvero"); the mode pill links to the setting. The plan's publishing option is called "Pubblicazione" and the environment setting "Ambiente".
 - Account guides and AI providers open one at a time.
 - Session cookie is named per port (`studio_session_<port>`).

@@ -4,14 +4,15 @@
   color-scheme: light dark; font-family: 'DM Sans', system-ui, sans-serif; color: var(--ink); background: var(--page);
   --page: #f6f5f0; --card: #fffefa; --field: #fff; --sunken: #efefe7; --tint: #e7ede0; --line: #dddcd2;
   --control: #7f897b; /* borders of inputs and buttons: at least 3:1 on page, card and field */
-  --ink: #222920; --muted: #555e52; --green: #214432; --button: #214432; --accent: #4e775b; --focus: #416651;
+  --ink: #222920; --muted: #555e52; --green: #214432; --button: #214432; --button-hover: #2b5a43; --on-button: #fff; --accent: #4e775b; --focus: #416651;
   --error: #8f3327; --error-bg: #f6e9e5; --tiktok: #222920;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --page: #131915; --card: #1a211c; --field: #111713; --sunken: #222b25; --tint: #26362b; --line: #2e3831;
-    --control: #7d8a7a; --ink: #e8ede5; --muted: #a9b3a6; --green: #9fd0ae; --button: #2f6048; --accent: #7fb591; --focus: #8fc4a0;
-    --error: #f2a99d; --error-bg: #3a1f1b; --tiktok: #3a463d;
+    /* Warm neutral charcoal for surfaces; green only on actions, links and accents. */
+    --page: #16171a; --card: #1f2125; --field: #141518; --sunken: #25272c; --tint: #2a3a30; --line: #3a3c42;
+    --control: #82858b; --ink: #ece9e2; --muted: #a9aaa6; --green: #cfe0d3; --button: #9cc7a9; --button-hover: #b3d6bf; --on-button: #0f1a13; --accent: #a8c9b0; --focus: #a8c9b0;
+    --error: #f0a79b; --error-bg: #3a201c; --tiktok: #3b3d43;
   }
 }
 ::placeholder { color: var(--muted); opacity: 1; }
@@ -21,25 +22,27 @@
 body { margin: 0; }
 a { color: inherit; }
 button, input, select, textarea { font: inherit; }
-button { cursor: pointer; border: 1px solid var(--button); background: var(--button); color: white; border-radius: 7px; padding: .72rem 1rem; font-weight: 650; }
-button:hover { filter: brightness(1.14); }
+button { cursor: pointer; border: 1px solid var(--button); background: var(--button); color: var(--on-button); border-radius: 7px; padding: .72rem 1rem; font-weight: 650; }
+button:hover:not(:disabled) { background: var(--button-hover); border-color: var(--button-hover); }
+button.secondary:hover:not(:disabled) { background: var(--tint); border-color: var(--control); }
 button:disabled { opacity: .6; cursor: default; }
 button.secondary { color: var(--green); background: transparent; border-color: var(--control); }
 button.small { padding: .42rem .68rem; font-size: .84rem; }
 button.danger { color: var(--error); border-color: var(--error); }
+button.danger:hover:not(:disabled) { background: var(--error-bg); border-color: var(--error); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 html { scroll-padding-top: calc(var(--bar-h, 4.5rem) + .75rem); }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 .bar { position: sticky; top: 0; z-index: 20; background: var(--page); padding: .85rem max(5vw, calc((100vw - 1180px) / 2)); border-bottom: 1px solid var(--line); display: flex; gap: 1rem; justify-content: space-between; align-items: center; }
 .brand { display: flex; gap: .55rem; align-items: center; font-weight: 750; text-decoration: none; }
-.monogram { background: var(--button); color: white; width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 7px; font: italic 1.35rem Georgia, serif; }
+.monogram { background: var(--button); color: var(--on-button); width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 7px; font: italic 1.35rem Georgia, serif; }
 nav { display: flex; gap: 1.25rem; font-size: .9rem; }
 nav a { text-decoration: none; }
 nav a:hover { text-decoration: underline; }
 nav a[aria-current] { color: var(--green); font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: .4em; }
 a.pill { text-decoration: none; }
 a.pill:hover { filter: brightness(.96); }
-.mode-pill.live { background: var(--ink); color: var(--page); font-weight: 650; }
+.mode-pill.live { background: var(--button); color: var(--on-button); font-weight: 650; }
 .mode-help { font-size: .85rem; margin: 0 0 1rem; max-width: 62ch; }
 .to-top { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 15; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%; box-shadow: 0 2px 10px #0003; }
 .to-top[hidden] { display: none; }

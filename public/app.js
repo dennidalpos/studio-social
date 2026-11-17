@@ -14,7 +14,7 @@ const acceptedFiles = { linkedin: '.jpg,.jpeg,.png,.mp4', facebook: '.jpg,.jpeg,
 const mediaSelections = { plan: null, editor: null, simple: null };
 const statusLabels = {
   draft: 'Bozza', queued: 'In programma', failed: 'Da riprogrammare', unknown: 'Da verificare',
-  published: 'Pubblicato', simulated: 'Invio simulato', generating: 'In generazione', publishing: 'In invio',
+  published: 'Pubblicato', simulated: 'Pubblicato in prova', generating: 'In generazione', publishing: 'In invio',
 };
 let state;
 let revision = 0;
@@ -74,7 +74,7 @@ function displayAccount(channel, account) {
   const setupNeeded = !account.configured || (channel === 'linkedin' && !state.linkedinHttps);
   select.textContent = state.demo || setupNeeded ? 'Configura' : account.ready ? 'Scollega' : 'Collega';
   const expiry = account.expires ? ` · Scade il ${new Date(account.expires).toLocaleDateString(locale())}` : '';
-  $(`${channel}-name`).textContent = state.demo ? (account.configured ? 'Credenziali salvate · demo' : 'Demo') : account.ready ? `${account.name}${expiry}` : setupNeeded ? 'Configurazione da completare' : 'Pronto da collegare';
+  $(`${channel}-name`).textContent = state.demo ? (account.configured ? 'Credenziali salvate · prova' : 'Prova') : account.ready ? `${account.name}${expiry}` : setupNeeded ? 'Configurazione da completare' : 'Pronto da collegare';
 }
 
 // Posts that are not being written or sent right now can be deleted (same list as the server).
@@ -139,7 +139,7 @@ function updateProviderHint() {
   const hint = $('provider-model');
   hint.hidden = !option;
   if (!option) return;
-  if (state.demo) hint.textContent = 'Generazione simulata.';
+  if (state.demo) hint.textContent = 'Generazione di prova.';
   else if (!option.ready) hint.textContent = 'Configura il provider in Account → Configura i provider AI.';
   else hint.textContent = 'Modello ' + option.model;
   updateWebControls();
@@ -187,11 +187,11 @@ function render(result, updatePlan = false) {
   updateWebControls();
   $('clear-demo').hidden = !result.demo || !result.posts.some(post => deletable.includes(post.status));
   const environment = $('environment');
-  environment.textContent = result.demo ? 'Demo · invii simulati' : 'Reale · pubblica davvero';
+  environment.textContent = result.demo ? 'Prova · non pubblica nulla' : 'Pubblicazione attiva';
   environment.classList.toggle('live', !result.demo);
-  environment.title = result.demo ? 'Modalità demo: nulla viene inviato ai social. Clicca per cambiarla.' : 'Modalità reale: i post vengono pubblicati sui tuoi account. Clicca per cambiarla.';
+  environment.title = result.demo ? 'In prova nessun post esce dall’app. Clicca per cambiare.' : 'La pubblicazione è attiva: i post escono sui tuoi account. Clicca per cambiare.';
   $('plan-state').textContent = result.plan.enabled ? 'Attivo' : 'In pausa';
-  $('sent-label').textContent = result.demo ? 'Invii simulati' : 'Pubblicati';
+  $('sent-label').textContent = result.demo ? 'Pubblicati in prova' : 'Pubblicati';
   const count = (...statuses) => result.posts.filter(post => statuses.includes(post.status)).length;
   $('draft-count').textContent = count('draft');
   $('queue-count').textContent = count('queued', 'publishing');
@@ -631,14 +631,14 @@ async function loadConfiguration() {
 modeForm.addEventListener('submit', event => {
   event.preventDefault();
   const demo = modeForm.elements.mode.value === 'demo';
-  if (demo === state?.demo) return message('Questa modalità è già attiva.', false, configurationNotice);
-  if (!demo && !window.confirm(t('Attivare la modalità reale? Verranno ripresi il calendario e gli invii della modalità reale.'))) return;
+  if (demo === state?.demo) return message('È già la scelta attiva.', false, configurationNotice);
+  if (!demo && !window.confirm(t('Attivare la pubblicazione sui tuoi account? Riprenderanno calendario e pubblicazioni programmate.'))) return;
   void change(event.submitter, async () => {
     const data = await api('configuration', { group: 'mode', demo });
     if (editor.open) editor.close();
     render(data.state, true);
     updateHttps(data);
-    message(demo ? 'Ambiente demo attivo: gli invii sono simulati.' : 'Ambiente reale attivo: i post vengono pubblicati davvero.', false, configurationNotice);
+    message(demo ? 'Prova attiva: nulla viene pubblicato.' : 'Pubblicazione attiva: i post escono sui tuoi account.', false, configurationNotice);
   }, configurationNotice);
 });
 

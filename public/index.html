@@ -131,10 +131,10 @@
     <section class="card advanced-only" id="account" aria-labelledby="account-heading">
       <div class="section-heading"><h2 id="account-heading">Account</h2></div>
       <form id="studio-mode" class="mode-form">
-        <label>Ambiente di Studio Social<select name="mode" aria-describedby="mode-help"><option value="demo">Demo · dati e invii simulati</option><option value="live">Reale · account e pubblicazioni reali</option></select></label>
-        <button type="submit" class="secondary small" disabled>Applica ambiente</button>
+        <label>Come vuoi usare Studio Social?<select name="mode" aria-describedby="mode-help"><option value="demo">Prova: nulla viene pubblicato</option><option value="live">Pubblicazione: sui tuoi account</option></select></label>
+        <button type="submit" class="secondary small" disabled>Salva scelta</button>
       </form>
-      <p class="mode-help" id="mode-help"><strong>Demo</strong>: testi e pubblicazioni sono simulati e non esce nulla verso i social. <strong>Reale</strong>: usa i tuoi account e pubblica davvero.</p>
+      <p class="mode-help" id="mode-help"><strong>Prova</strong>: puoi esercitarti, nulla arriva ai social. <strong>Pubblicazione</strong>: i post escono sui tuoi account.</p>
       <p id="config-notice" role="status" hidden></p>
       <div class="accounts">
         <article>
@@ -162,7 +162,7 @@
                 <div><button type="submit" class="secondary small">Salva certificato</button></div>
               </form>
             </details>
-            <p>Passa alla modalità reale e premi <strong>Collega</strong>. Controlla che compaia il tuo profilo. Per il video, verifica anche l’accesso alle API LinkedIn <strong>Videos</strong> e <strong>Posts</strong>. Se il token scade, collega di nuovo il profilo.</p>
+            <p>Scegli «Pubblicazione» qui sopra e premi <strong>Collega</strong>. Controlla che compaia il tuo profilo. Per il video, verifica anche l’accesso alle API LinkedIn <strong>Videos</strong> e <strong>Posts</strong>. Se il token scade, collega di nuovo il profilo.</p>
             <p><a href="https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow" target="_blank" rel="noopener noreferrer">Guida ufficiale OAuth di LinkedIn</a></p>
           </details>
         </article>
@@ -176,7 +176,7 @@
               <li>Con il token utente, esegui <code>GET /me/accounts?fields=id,name,access_token,tasks</code>. Dalla riga della Pagina copia <code>id</code> e <code>access_token</code> nei campi qui sotto.</li>
             </ol>
             <form data-configuration="facebook"></form>
-            <p>Passa alla modalità reale e premi <strong>Collega</strong>. Verifica il nome della Pagina. Se la Pagina manca da <code>/me/accounts</code>, controlla il ruolo sulla Pagina e che l’app Meta abbia accesso ai permessi richiesti.</p>
+            <p>Scegli «Pubblicazione» qui sopra e premi <strong>Collega</strong>. Verifica il nome della Pagina. Se la Pagina manca da <code>/me/accounts</code>, controlla il ruolo sulla Pagina e che l’app Meta abbia accesso ai permessi richiesti.</p>
             <p><a href="https://developers.facebook.com/docs/graph-api/reference/page/feed/" target="_blank" rel="noopener noreferrer">Guida ufficiale al feed della Pagina</a></p>
           </details>
         </article>
@@ -191,7 +191,7 @@
             </ol>
             <form data-configuration="instagram"></form>
             <p><strong>Reel:</strong> carica un file locale. <strong>Foto JPG:</strong> indica una cartella locale già servita dal tuo hosting e il corrispondente URL HTTPS pubblico. Meta usa quell’URL per scaricare la foto.</p>
-            <p>Passa alla modalità reale e premi <strong>Collega</strong>. Verifica il nome utente Instagram. Se il profilo non appare, controlla il collegamento alla Pagina e i permessi del token.</p>
+            <p>Scegli «Pubblicazione» qui sopra e premi <strong>Collega</strong>. Verifica il nome utente Instagram. Se il profilo non appare, controlla il collegamento alla Pagina e i permessi del token.</p>
             <p><a href="https://developers.facebook.com/documentation/instagram-platform/content-publishing" target="_blank" rel="noopener noreferrer">Guida ufficiale alla pubblicazione Instagram</a></p>
           </details>
         </article>

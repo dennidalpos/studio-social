@@ -9,7 +9,7 @@
     Pubblico: 'Audience', Tono: 'Tone', Canale: 'Channel', Temi: 'Topics', Giorni: 'Days', Testo: 'Text', Svuota: 'Clear',
     Attivo: 'On', 'In pausa': 'Paused', Collega: 'Connect', Scollega: 'Disconnect', Configura: 'Set up', Lingua: 'Language',
     'Caricamento': 'Loading', 'Caricamento…': 'Loading…', Bozza: 'Draft', Pubblicato: 'Published', Pubblicati: 'Published',
-    Programma: 'Schedule', 'Pubblica ora': 'Publish now', Richiesta: 'Request',
+    Programma: 'Schedule', 'Pubblica ora': 'Publish now', Richiesta: 'Request', Prova: 'Practice',
   };
   // Longest phrases first so that a full sentence wins over the words it contains.
   const phrases = [
@@ -43,7 +43,7 @@
     // Advanced: overview and plan
     ['Calendario', 'Editorial'], ['editoriale', 'calendar'],
     ['Scrivi, programma e pubblica su LinkedIn, Facebook e Instagram. Prepara i post per TikTok.', 'Write, schedule and publish on LinkedIn, Facebook and Instagram. Prepare posts for TikTok.'],
-    ['Riepilogo', 'Summary'], ['In programma', 'Scheduled'], ['Invii simulati', 'Simulated sends'],
+    ['Riepilogo', 'Summary'], ['In programma', 'Scheduled'], ['Pubblicati in prova', 'Published in practice'],
     ['Piano editoriale', 'Editorial plan'], ['LinkedIn · profilo personale', 'LinkedIn · personal profile'],
     ['Facebook · Pagina', 'Facebook · Page'], ['Instagram · professionale', 'Instagram · professional'], ['TikTok · esportazione', 'TikTok · export'],
     ['Provider AI', 'AI provider'], ['Es. innovazione e gestione dei progetti', 'E.g. innovation and project management'],
@@ -55,17 +55,16 @@
     ['Attiva il piano ricorrente', 'Turn on the recurring plan'], ['Salva piano', 'Save plan'], ['Genera una bozza', 'Generate a draft'],
     ['Scrivi un post', 'Write a post'], ['Il tuo primo post parte da qui', 'Your first post starts here'],
     ['Scegli un tema e genera una bozza, oppure scrivi il post direttamente.', 'Pick a topic and generate a draft, or write the post directly.'],
-    ['Generazione simulata.', 'Simulated generation.'], ['Configura il provider in Account → Configura i provider AI.', 'Set up the provider in Account → Set up AI providers.'],
+    ['Generazione di prova.', 'Practice generation.'], ['Configura il provider in Account → Configura i provider AI.', 'Set up the provider in Account → Set up AI providers.'],
     ['Modello ', 'Model '], [' · da configurare', ' · to be set up'],
     // Account
-    ['Ambiente di Studio Social', 'Studio Social environment'], ['Demo · dati e invii simulati', 'Demo · simulated data and sends'],
-    ['Reale · account e pubblicazioni reali', 'Live · real accounts and publishing'], ['Applica ambiente', 'Apply environment'],
-    ['Demo · invii simulati', 'Demo · simulated sends'], ['Reale · pubblica davvero', 'Live · publishes for real'],
-    ['Modalità demo: nulla viene inviato ai social. Clicca per cambiarla.', 'Demo mode: nothing is sent to the socials. Click to change it.'],
-    ['Modalità reale: i post vengono pubblicati sui tuoi account. Clicca per cambiarla.', 'Live mode: posts are published on your accounts. Click to change it.'],
-    ['Demo', 'Demo'], ['Reale', 'Live'],
-    [': testi e pubblicazioni sono simulati e non esce nulla verso i social. ', ': texts and publishing are simulated and nothing goes out to the socials. '],
-    [': usa i tuoi account e pubblica davvero.', ': uses your accounts and publishes for real.'],
+    ['Come vuoi usare Studio Social?', 'How do you want to use Studio Social?'], ['Prova: nulla viene pubblicato', 'Practice: nothing is published'],
+    ['Pubblicazione: sui tuoi account', 'Publishing: on your accounts'], ['Salva scelta', 'Save choice'],
+    ['Prova · non pubblica nulla', 'Practice · nothing is published'], ['Pubblicazione attiva', 'Publishing on'],
+    ['In prova nessun post esce dall’app. Clicca per cambiare.', 'In practice no post leaves the app. Click to change.'],
+    ['La pubblicazione è attiva: i post escono sui tuoi account. Clicca per cambiare.', 'Publishing is on: posts go out on your accounts. Click to change.'],
+    [': puoi esercitarti, nulla arriva ai social. ', ': you can practice, nothing reaches your socials. '],
+    [': i post escono sui tuoi account.', ': posts go out on your accounts.'],
     ['Profilo personale', 'Personal profile'], ['Pagina Facebook', 'Facebook Page'], ['Account professionale', 'Professional account'],
     ['Credenziali salvate · demo', 'Credentials saved · demo'], ['Configurazione da completare', 'Setup to complete'], ['Pronto da collegare', 'Ready to connect'],
     [' · Scade il ', ' · Expires on '],
@@ -78,7 +77,7 @@
     [' nel browser o nel sistema. In alternativa, usa un certificato attendibile per ', ' in the browser or the system. Alternatively, use a trusted certificate for '],
     ['Genera certificato locale', 'Generate local certificate'], ['Apri HTTPS locale', 'Open local HTTPS'], ['Scarica certificato pubblico', 'Download public certificate'],
     ['Usa un certificato esistente', 'Use an existing certificate'], ['Certificato PEM', 'PEM certificate'], ['Chiave privata PEM', 'PEM private key'], ['Salva certificato', 'Save certificate'],
-    ['Passa alla modalità reale e premi ', 'Switch to live mode and press '], ['. Controlla che compaia il tuo profilo. Per il video, verifica anche l’accesso alle API LinkedIn ', '. Check that your profile appears. For video, also check access to the LinkedIn APIs '],
+    ['Scegli «Pubblicazione» qui sopra e premi ', 'Choose “Publishing” above and press '], ['. Controlla che compaia il tuo profilo. Per il video, verifica anche l’accesso alle API LinkedIn ', '. Check that your profile appears. For video, also check access to the LinkedIn APIs '],
     ['. Se il token scade, collega di nuovo il profilo.', '. If the token expires, connect the profile again.'],
     ['Guida ufficiale OAuth di LinkedIn', 'Official LinkedIn OAuth guide'],
     ['Apri la tua app in ', 'Open your app in '], ['. Per la Pagina che vuoi usare, il tuo account deve poter creare contenuti (', '. For the Page you want to use, your account must be able to create content ('],
@@ -106,7 +105,7 @@
     ['Modifica post', 'Edit post'], ['Pagina Facebook', 'Facebook Page'], ['Allegato del post', 'Post attachment'], ['Data e ora (fuso del dispositivo)', 'Date and time (device time zone)'],
     ['Salva bozza', 'Save draft'], ['Anteprima post', 'Post preview'], ['Mostra allegato', 'Show attachment'],
     // Post cards and statuses
-    ['Da riprogrammare', 'To reschedule'], ['Da verificare', 'To verify'], ['In generazione', 'Generating'], ['In invio', 'Sending'], ['Invio simulato', 'Simulated send'],
+    ['Da riprogrammare', 'To reschedule'], ['Da verificare', 'To verify'], ['In generazione', 'Generating'], ['In invio', 'Sending'], ['Pubblicato in prova', 'Published in practice'],
     ['L’ho trovato sul social', 'I found it on the social'], ['Assente sul social', 'Not on the social'],
     ['Didascalia copiata.', 'Caption copied.'], ['Seleziona il testo e copialo manualmente.', 'Select the text and copy it manually.'],
     ['Modifiche non salvate', 'Unsaved changes'], ['Aggiungi testo o un allegato per vedere l’anteprima.', 'Add text or an attachment to see the preview.'],
@@ -128,7 +127,7 @@
     ['Salva configurazione', 'Save configuration'], ['Configurazione salvata.', 'Configuration saved.'],
     ['HTTPS attivo. Aprilo prima di collegare LinkedIn.', 'HTTPS is on. Open it before connecting LinkedIn.'], ['HTTPS locale da attivare.', 'Local HTTPS to be turned on.'],
     ['Questa modalità è già attiva.', 'This mode is already active.'],
-    ['Ambiente demo attivo: gli invii sono simulati.', 'Demo environment on: sends are simulated.'], ['Ambiente reale attivo: i post vengono pubblicati davvero.', 'Live environment on: posts are published for real.'],
+    ['Prova attiva: nulla viene pubblicato.', 'Practice on: nothing is published.'], ['Pubblicazione attiva: i post escono sui tuoi account.', 'Publishing on: posts go out on your accounts.'],
     ['URL di callback copiato.', 'Callback URL copied.'], ['Seleziona e copia l’URL nel riquadro.', 'Select and copy the URL in the box.'],
     ['Profilo LinkedIn collegato.', 'LinkedIn profile connected.'], ['Collegamento annullato.', 'Connection cancelled.'],
     ['Collegamento non riuscito. Verifica credenziali, permessi e URL di callback.', 'Connection failed. Check credentials, permissions and the callback URL.'],
@@ -149,7 +148,7 @@
     ['Collega l’account prima di programmare la pubblicazione.', 'Connect the account before scheduling publication.'], ['Scegli una data futura.', 'Choose a future date.'],
     ['Media non trovato.', 'Media not found.'], ['Pagina non trovata.', 'Page not found.'], ['Origine della richiesta non valida.', 'Invalid request origin.'],
     ['La modalità è cambiata. Aggiorna la pagina e riprova.', 'The mode has changed. Refresh the page and try again.'],
-    ['Per collegare LinkedIn attiva la modalità reale e completa credenziali e HTTPS nella guida.', 'To connect LinkedIn, turn on live mode and complete the credentials and HTTPS in the guide.'],
+    ['Per collegare LinkedIn scegli «Pubblicazione» in Account e completa credenziali e HTTPS nella guida.', 'To connect LinkedIn, choose “Publishing” in Account and complete the credentials and HTTPS in the guide.'],
     ['Inserisci ID e token nella guida Facebook in Account.', 'Enter the ID and token in the Facebook guide under Account.'],
     ['Inserisci il token della Pagina nella guida Instagram in Account.', 'Enter the Page token in the Instagram guide under Account.'],
     ['Operazione non riuscita. Controlla la configurazione locale.', 'Operation failed. Check the local configuration.'],
@@ -234,7 +233,7 @@
     ['Eliminare questo post programmato? Non verrà pubblicato e non si può annullare.', 'Delete this scheduled post? It will not be published and this cannot be undone.'],
     ['Eliminare la copia di questo post da Studio Social? Sul social resta: va rimosso lì a mano.', 'Delete the copy of this post from Studio Social? It stays on the social: remove it there by hand.'],
     ['Eliminare tutti i post di prova? Non si può annullare.', 'Delete all the test posts? This cannot be undone.'],
-    ['Questo post è in lavorazione: riprova tra poco.', 'This post is being processed: try again shortly.'], ['Puoi svuotare i post solo in modalità demo.', 'You can only clear the posts in demo mode.'],
+    ['Questo post è in lavorazione: riprova tra poco.', 'This post is being processed: try again shortly.'], ['I post si eliminano in blocco solo in prova.', 'Posts can only be deleted in bulk in practice.'],
     // Fallbacks
     ['Collegamento ', 'Connection '],
   ].filter(([it, en]) => it !== en).sort((a, b) => b[0].length - a[0].length);
@@ -250,7 +249,7 @@
     [/^(\d+) modelli disponibili\. Scegline uno e salva la configurazione\.$/, '$1 models available. Pick one and save the configuration.'],
     [/^(.+) non ha restituito un post completo entro il limite di (\d+) caratteri\.$/, '$1 did not return a complete post within the limit of $2 characters.'],
     [/^(.+): inserisci (da 1 a|fino a) (\d+) caratteri\.$/, (m, label, range, n) => `${translate(label)}: enter ${range === 'da 1 a' ? '1 to' : 'up to'} ${n} characters.`],
-    [/^Attivare la modalità reale\? Verranno ripresi il calendario e gli invii della modalità reale\.$/, 'Turn on live mode? The calendar and sends of live mode will resume.'],
+    [/^Attivare la pubblicazione sui tuoi account\? Riprenderanno calendario e pubblicazioni programmate\.$/, 'Turn on publishing to your accounts? The calendar and scheduled posts will resume.'],
   ];
 
   const supported = ['it', 'en'];

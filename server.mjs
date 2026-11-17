@@ -302,7 +302,7 @@ function deletePost(id) {
   db.prepare('DELETE FROM posts WHERE id = ?').run(id);
 }
 function clearDemoPosts() {
-  if (!service.demo) throw new InputError('Puoi svuotare i post solo in modalità demo.');
+  if (!service.demo) throw new InputError('I post si eliminano in blocco solo in prova.');
   for (const post of db.prepare('SELECT id, status, slot FROM posts').all()) if (deletable.includes(post.status)) deletePost(post.id);
 }
 
@@ -425,7 +425,7 @@ async function serve(req, res) {
     }
     if (path === '/api/linkedin-https') return respond(res, 200, await configureHttps(data));
     if (path === '/api/linkedin') {
-      if (service.demo || !service.linkedin || !secureReady) throw new InputError('Per collegare LinkedIn attiva la modalità reale e completa credenziali e HTTPS nella guida.');
+      if (service.demo || !service.linkedin || !secureReady) throw new InputError('Per collegare LinkedIn scegli «Pubblicazione» in Account e completa credenziali e HTTPS nella guida.');
       oauthState = { value: randomBytes(32).toString('hex'), expires: Date.now() + 10 * 60_000 };
       return respond(res, 200, { url: service.authorizeLinkedin(callback, oauthState.value) });
     }
@@ -480,7 +480,7 @@ function updateConfiguration(data) {
   if (activeWrites > 1 || workerBusy) throw new ConfigError('Attendi che termini l’operazione in corso e riprova.');
   let updates;
   if (data.group === 'mode') {
-    if (typeof data.demo !== 'boolean') throw new ConfigError('Seleziona una modalità valida.');
+    if (typeof data.demo !== 'boolean') throw new ConfigError('Scegli una delle due opzioni.');
     updates = { DEMO: String(data.demo) };
   } else updates = settings.changes(data.group, data.values);
   const nextConfig = settings.effective(updates);

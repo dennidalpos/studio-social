@@ -58,8 +58,8 @@ test('starts in demo mode without console errors', async ({ page }) => {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.reload();
   await expect(page.getByRole('heading', { name: /Calendario/ })).toBeVisible();
-  await expect(page.locator('#environment')).toContainText(/demo · invii simulati/i);
-  await expect(page.getByLabel('Ambiente di Studio Social')).toHaveValue('demo');
+  await expect(page.locator('#environment')).toContainText(/prova · non pubblica nulla/i);
+  await expect(page.getByLabel('Come vuoi usare Studio Social?')).toHaveValue('demo');
   expect(errors).toEqual([]);
 });
 
@@ -137,7 +137,7 @@ test('publishes a post now (simulated)', async ({ page }) => {
   await post.getByRole('button', { name: 'Modifica' }).click();
   await editor.getByRole('button', { name: 'Pubblica ora' }).click();
   await expect(page.locator('#notice')).toHaveText('Post messo in coda.');
-  await expect(post).toContainText('Invio simulato', { timeout: 20_000 });
+  await expect(post).toContainText('Pubblicato in prova', { timeout: 20_000 });
   await expect(page.locator('#sent-count')).not.toHaveText('0');
 });
 
@@ -200,11 +200,11 @@ test('the bar stays visible, the menu marks the section and back-to-top works', 
 
 test('the mode pill explains the mode and leads to the setting', async ({ page }) => {
   const pill = page.locator('#environment');
-  await expect(pill).toHaveAttribute('title', /nulla viene inviato/);
+  await expect(pill).toHaveAttribute('title', /nessun post esce/);
   await pill.click();
   await expect(page.locator('#account')).toBeInViewport();
-  await expect(page.getByLabel('Ambiente di Studio Social')).toBeVisible();
-  await expect(page.locator('#mode-help')).toContainText('simulati');
+  await expect(page.getByLabel('Come vuoi usare Studio Social?')).toBeVisible();
+  await expect(page.locator('#mode-help')).toContainText('nulla arriva ai social');
 });
 
 test('errors are announced as alerts and stay visible under the bar', async ({ page }) => {
@@ -213,8 +213,8 @@ test('errors are announced as alerts and stay visible under the bar', async ({ p
   await expect(page.locator('#editor-notice')).toHaveAttribute('role', 'alert');
   await page.locator('#close-editor').click();
   await page.getByRole('link', { name: 'Account' }).click();
-  await page.getByRole('button', { name: 'Applica ambiente' }).click();
-  await expect(page.locator('#config-notice')).toHaveText('Questa modalità è già attiva.');
+  await page.getByRole('button', { name: 'Salva scelta' }).click();
+  await expect(page.locator('#config-notice')).toHaveText('È già la scelta attiva.');
 });
 
 test('simple: opens without accounts, plan or mode pill', async ({ page }) => {
@@ -437,8 +437,8 @@ test.describe('dark scheme', () => {
   test.use({ colorScheme: 'dark' });
 
   test('uses the dark palette and still loads its fonts', async ({ page }) => {
-    await expect(page.locator('html')).toHaveCSS('background-color', 'rgb(19, 25, 21)');
-    await expect(page.getByRole('heading', { name: /Calendario/ })).toHaveCSS('color', 'rgb(232, 237, 229)');
+    await expect(page.locator('html')).toHaveCSS('background-color', 'rgb(22, 23, 26)');
+    await expect(page.getByRole('heading', { name: /Calendario/ })).toHaveCSS('color', 'rgb(236, 233, 226)');
     await page.evaluate(() => document.fonts.ready);
     expect(await page.evaluate(() => [...document.fonts].filter((font) => font.status === 'loaded').map((font) => font.family).sort())).toEqual(['DM Sans', 'Instrument Serif']);
   });

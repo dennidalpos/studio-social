@@ -34,7 +34,7 @@ npm start
 
 On Windows you can also run `run.ps1` (see below). The first time, in each browser, open the address with the key printed in the terminal (`http://localhost:3000/?key=…`): it sets a session cookie, and after that <http://localhost:3000> is enough. The key is in `.data/access.key`; to change it, delete the file and restart.
 
-Demo mode needs no external dependency, key or account and uses a separate database. Texts are samples and sends are simulated. To try the flow, enter a theme, choose **Genera una bozza**, open **Modifica** and choose **Programma** or **Pubblica ora**.
+Demo mode (shown in the app as **Prova**, "practice") needs no external dependency, key or account and uses a separate database. Texts are samples and sends are simulated. To try the flow, enter a theme, choose **Genera una bozza**, open **Modifica** and choose **Programma** or **Pubblica ora**.
 
 ### `run.ps1` (Windows)
 
@@ -70,7 +70,7 @@ The server listens only on the local machine, is meant for a single process and 
 
 ## Configuration in the app
 
-Open **Account** in the dashboard. Each social card has a guide, links to the official portals and, when available, fields to save credentials. **Applica ambiente** switches between demo and real mode and back. The two modes keep separate drafts, attachments and calendars. When you switch to real mode, any calendar already set for that mode resumes.
+Open **Account** in the dashboard. Each social card has a guide, links to the official portals and, when available, fields to save credentials. Under **Come vuoi usare Studio Social?** choose **Prova** (demo: nothing is published) or **Pubblicazione** (real accounts) and press **Salva scelta**. The two keep separate drafts, attachments and calendars. When you switch to **Pubblicazione**, any calendar already set for it resumes.
 
 - **LinkedIn.** Register the callback shown in the profile guide, save Client ID and Client Secret and enable local HTTPS. You can generate a certificate from the app if OpenSSL is available, or paste an existing PEM certificate and key. The browser or the system must accept the `localhost` certificate to complete the OAuth return. The HTTPS managed by the app normally uses the port after the main one; the guide always shows the actual address.
 - **Facebook.** Use the ID and token of a Page you can manage. The guide says where to get the token and which permissions to request. The connection check identifies the Page. Meta verifies write permissions when you send the first post.
