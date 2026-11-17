@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { crc32, deflateSync } from 'node:zlib';
 
 // The whole suite runs in demo mode against a scratch data folder (see playwright.config.mjs).
 // Tests share that server and run in order; each one creates its own uniquely named post.
@@ -11,6 +12,24 @@ const cookie = { Cookie: `studio_session_3100=${accessKey}` };
 const hasFfprobe = spawnSync('ffprobe', ['-version'], { stdio: 'ignore' }).status === 0;
 // 1x1 PNG
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==', 'base64');
+
+// A PNG with valid checksums (browsers refuse to decode the minimal one above when copying it).
+function validPng(width = 8, height = 8) {
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const out = Buffer.alloc(body.length + 8);
+    out.writeUInt32BE(data.length, 0);
+    body.copy(out, 4);
+    out.writeUInt32BE(crc32(body), body.length + 4);
+    return out;
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width * 3, 200)]);
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', header), chunk('IDAT', deflateSync(Buffer.concat(Array(height).fill(row)))), chunk('IEND', Buffer.alloc(0))]);
+}
 
 async function createDraft(page, topic) {
   await page.getByLabel('Temi').fill(topic);
@@ -266,6 +285,21 @@ test('improves the plan fields from generic words and offers the web toggle', as
   await page.locator('#plan-web').uncheck();
   await page.getByRole('button', { name: 'Salva piano' }).click();
   await expect(page.locator('#notice')).toHaveText('Piano salvato.');
+});
+
+test('simple: adds a photo, previews it, copies it and drops it when the social does not take it', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.locator('#simple-file').setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: validPng() });
+  await expect(page.locator('#simple-notice')).toHaveText('Allegato pronto.');
+  await expect(page.locator('#simple-media img')).toBeVisible();
+  await expect(page.locator('#simple-preview-media img')).toBeVisible();
+  await page.getByRole('button', { name: 'Copia immagine' }).click();
+  await expect(page.locator('#simple-notice')).toContainText('Immagine copiata');
+  expect(await page.evaluate(async () => (await navigator.clipboard.read())[0].types)).toContain('image/png');
+  await page.locator('#simple-form').getByText('Instagram', { exact: true }).click();
+  await expect(page.locator('#simple-notice')).toContainText('non è compatibile con il canale');
+  await expect(page.locator('#simple-media img')).toHaveCount(0);
+  await expect(page.locator('#simple-preview-media img')).toHaveCount(0);
 });
 
 test('deletes a draft after confirming, from the card and from the editor', async ({ page }) => {

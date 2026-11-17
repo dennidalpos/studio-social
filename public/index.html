@@ -57,6 +57,11 @@
           <small id="simple-ai-hint">L’AI scrive il post nei limiti del social scelto. Con «Abilita web» legge i link che inserisci nella richiesta.</small>
           <label>Testo del post<textarea id="simple-text" rows="10" maxlength="6000" placeholder="Scrivi qui il tuo post" aria-describedby="simple-count"></textarea></label>
           <p class="counter" id="simple-count" aria-live="polite"></p>
+          <div class="media-field">
+            <label>Foto o video<input type="file" id="simple-file" aria-describedby="simple-media-hint"></label>
+            <p class="media-hint" id="simple-media-hint"></p>
+            <div id="simple-media"></div>
+          </div>
           <div class="actions">
             <button type="submit" id="simple-open" disabled>Copia e apri LinkedIn</button>
             <button class="secondary" type="button" id="simple-copy" disabled>Copia solo il testo</button>
@@ -73,6 +78,7 @@
             <div><h3 id="simple-name"></h3><p class="meta">Così apparirà il testo</p></div>
           </header>
           <p id="simple-preview" data-i18n-exact></p>
+          <div id="simple-preview-media"></div>
         </article>
         <h3 class="steps-title">Come si pubblica</h3>
         <ol class="simple-steps" id="simple-steps"></ol>

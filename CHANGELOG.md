@@ -16,6 +16,7 @@
 - MIT `LICENSE`, `CREDITS.md` (fonts and dev tooling with their licenses), `license` field in `package.json`.
 - README rewritten in English with real screenshots (`docs/images/`), Mermaid diagrams, `run.ps1` documentation, tests and limits.
 
+- Media in the simple view: **Foto o video** with preview in the post, **Copia immagine** (to paste into the social's composer with Ctrl+V) and a download link; videos are uploaded on the social from the downloaded file. The file is checked for the chosen social and dropped if you switch to one that does not accept it. Nothing is sent to any social.
 - Delete posts: **Elimina** on every card and in the editor (with a confirmation that says what happens; for published posts only the local copy goes, the post stays on the social), and **Svuota i post di prova** in demo mode. A deleted post of the recurring plan does not come back the same day.
 
 ### Fixed

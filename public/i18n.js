@@ -224,6 +224,10 @@
     ['Testo scritto dall’AI. Controllalo e modificalo prima di pubblicare.', 'Text written by the AI. Check and edit it before publishing.'],
     ['Campi migliorati. Controllali e salva il piano.', 'Fields improved. Check them and save the plan.'], ['Scrivi almeno una parola in uno dei campi.', 'Write at least one word in one of the fields.'],
     [' non ha restituito campi utilizzabili. Riprova.', ' did not return usable fields. Try again.'],
+    // Media in the simple view
+    ['Foto o video', 'Photo or video'], ['Copia immagine', 'Copy image'],
+    ['Immagine copiata. Incollala nel post del social con Ctrl+V.', 'Image copied. Paste it into the social’s post with Ctrl+V.'],
+    ['Non riesco a copiare l’immagine. Scaricala e caricala sul social.', 'I cannot copy the image. Download it and upload it on the social.'],
     // Deleting posts
     ['Elimina', 'Delete'], ['Svuota i post di prova', 'Clear the test posts'], ['Post eliminato.', 'Post deleted.'], ['Post di prova eliminati.', 'Test posts deleted.'],
     ['Eliminare questo post? Non si può annullare.', 'Delete this post? This cannot be undone.'],

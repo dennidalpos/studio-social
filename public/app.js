@@ -11,7 +11,7 @@ const previewMediaToggle = $('preview-media-checkbox');
 const form = $('edit-form');
 const channelLabels = { linkedin: 'LinkedIn', facebook: 'Pagina Facebook', instagram: 'Instagram', tiktok: 'TikTok' };
 const acceptedFiles = { linkedin: '.jpg,.jpeg,.png,.mp4', facebook: '.jpg,.jpeg,.png,.mp4,.mov', instagram: '.jpg,.jpeg,.mp4,.mov', tiktok: '.jpg,.jpeg,.webp,.mp4,.mov,.webm' };
-const mediaSelections = { plan: null, editor: null };
+const mediaSelections = { plan: null, editor: null, simple: null };
 const statusLabels = {
   draft: 'Bozza', queued: 'In programma', failed: 'Da riprogrammare', unknown: 'Da verificare',
   published: 'Pubblicato', simulated: 'Invio simulato', generating: 'In generazione', publishing: 'In invio',
@@ -284,7 +284,35 @@ previewDialog.addEventListener('close', () => {
 });
 
 function selectedChannel(location) {
+  if (location === 'simple') return selectedSocial();
   return location === 'plan' ? planForm.elements.channel.value : editing?.channel ?? form.elements.channel.value;
+}
+
+// Simple view: the image goes to the clipboard as PNG (the only image format browsers accept there), to be pasted into the social's post.
+async function imageAsPng(media) {
+  const blob = await (await fetch(`/media/${media.id}`)).blob();
+  if (blob.type === 'image/png') return blob;
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0);
+  return new Promise((resolve, reject) => canvas.toBlob(png => (png ? resolve(png) : reject(new Error('png'))), 'image/png'));
+}
+
+async function copyImage(media) {
+  const notice = $('simple-notice');
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': imageAsPng(media) })]);
+    message('Immagine copiata. Incollala nel post del social con Ctrl+V.', false, notice);
+  } catch { message('Non riesco a copiare l’immagine. Scaricala e caricala sul social.', true, notice); }
+}
+
+function renderSimpleMedia() {
+  const holder = $('simple-preview-media');
+  const media = mediaSelections.simple;
+  holder.replaceChildren();
+  if (media) holder.append(mediaPreview(media));
 }
 
 function updateMedia(location) {
@@ -292,7 +320,7 @@ function updateMedia(location) {
   const input = $(`${location}-file`);
   const output = $(`${location}-media`);
   const hints = state?.mediaHints?.[channel] || '';
-  const instagramNote = channel === 'instagram' && state && !state.instagramPhotos ? ' Per pubblicare un JPG completa la configurazione HTTPS nella guida Instagram.' : '';
+  const instagramNote = channel === 'instagram' && location !== 'simple' && state && !state.instagramPhotos ? ' Per pubblicare un JPG completa la configurazione HTTPS nella guida Instagram.' : '';
   const planNote = location === 'plan' ? ' Il piano riutilizza lo stesso file.' : '';
   $(`${location}-media-hint`).textContent = `${hints}${instagramNote}${planNote}`;
   input.accept = acceptedFiles[channel];
@@ -300,26 +328,31 @@ function updateMedia(location) {
     const mode = planForm.elements.mode;
     mode.querySelector('[value=auto]').disabled = channel === 'tiktok';
     if (channel === 'tiktok') mode.value = 'draft';
-  } else {
+  } else if (location === 'editor') {
     form.elements.content.maxLength = ['instagram', 'tiktok'].includes(channel) ? 2200 : 3000;
   }
   const media = mediaSelections[location];
   output.replaceChildren();
   if (media) {
-    output.append(mediaPreview(media, { downloadable: channel === 'tiktok' }), button('Rimuovi allegato', () => {
+    output.append(mediaPreview(media, { downloadable: channel === 'tiktok' || location === 'simple' }));
+    if (location === 'simple' && media.duration === null) output.append(button('Copia immagine', () => void copyImage(media)));
+    output.append(button('Rimuovi allegato', () => {
       mediaSelections[location] = null;
       input.value = '';
       updateMedia(location);
     }));
   }
+  if (location === 'simple') renderSimpleMedia();
 }
+
+const noticeFor = (location) => $(location === 'plan' ? 'notice' : location === 'simple' ? 'simple-notice' : 'editor-notice');
 
 function changeChannel(location) {
   const media = mediaSelections[location];
   const extension = media?.name.split('.').at(-1);
   if (extension && !acceptedFiles[selectedChannel(location)].split(',').includes(`.${extension}`)) {
     mediaSelections[location] = null;
-    message('L’allegato precedente non è compatibile con il canale selezionato.', true, location === 'plan' ? $('notice') : $('editor-notice'));
+    message('L’allegato precedente non è compatibile con il canale selezionato.', true, noticeFor(location));
   }
   $(`${location}-file`).value = '';
   updateMedia(location);
@@ -328,7 +361,7 @@ function changeChannel(location) {
 function uploadMedia(location, input) {
   const file = input.files[0];
   if (!file) return;
-  const notice = location === 'plan' ? $('notice') : $('editor-notice');
+  const notice = noticeFor(location);
   if (busy) { input.value = ''; return message('Attendi che termini l’operazione in corso e seleziona di nuovo il file.', true, notice); }
   const channel = selectedChannel(location);
   const postId = editing?.id;
@@ -486,7 +519,7 @@ async function refresh(initial = false) {
 
 planForm.elements.channel.addEventListener('change', () => changeChannel('plan'));
 form.elements.channel.addEventListener('change', () => changeChannel('editor'));
-for (const location of ['plan', 'editor']) {
+for (const location of ['plan', 'editor', 'simple']) {
   const input = $(`${location}-file`);
   input.addEventListener('change', () => uploadMedia(location, input));
 }
@@ -805,7 +838,7 @@ async function copyAndOpen(open) {
 
 simpleForm.addEventListener('submit', event => { event.preventDefault(); void copyAndOpen(true); });
 $('simple-copy').addEventListener('click', () => void copyAndOpen(false));
-$('simple-clear').addEventListener('click', () => { simpleText.value = ''; simpleMessage(''); renderSimple(); simpleText.focus(); });
+$('simple-clear').addEventListener('click', () => { simpleText.value = ''; mediaSelections.simple = null; $('simple-file').value = ''; updateMedia('simple'); simpleMessage(''); renderSimple(); simpleText.focus(); });
 simpleText.addEventListener('input', () => { simpleMessage(''); renderSimple(); });
 $('simple-ai').addEventListener('click', async event => {
   const prompt = $('simple-prompt').value.trim();
@@ -822,7 +855,7 @@ $('simple-ai').addEventListener('click', async event => {
   } catch (error) { simpleMessage(error.message, true); }
   finally { button.disabled = false; }
 });
-simpleForm.addEventListener('change', event => { if (event.target.name === 'simple-channel') { simpleMessage(''); renderSimple(); } });
+simpleForm.addEventListener('change', event => { if (event.target.name === 'simple-channel') { simpleMessage(''); renderSimple(); changeChannel('simple'); } });
 try {
   const saved = JSON.parse(localStorage.getItem(draftKey) ?? 'null');
   if (saved && typeof saved.text === 'string' && Object.hasOwn(socials, saved.channel)) {
@@ -831,6 +864,7 @@ try {
   }
 } catch { /* nothing saved or storage unavailable */ }
 renderSimple();
+updateMedia('simple');
 
 // Simple (default) or advanced view; the choice is remembered in this browser.
 const viewToggle = $('view-toggle');
