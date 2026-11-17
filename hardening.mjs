@@ -1,21 +1,20 @@
 import { execFileSync } from 'node:child_process';
-import { accessSync, constants, statSync } from 'node:fs';
-import { chmodSync } from 'node:fs';
+import { accessSync, chmodSync, constants, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { delimiter, isAbsolute, join, resolve } from 'node:path';
 
 const windows = process.platform === 'win32';
 
 /**
- * Resolves a program using only absolute PATH entries, never the current directory.
- * On Windows, Node searches the working directory first, so a planted executable
- * there would otherwise run in place of the real tool.
+ * Resolves a program using only absolute PATH entries.
+ * On Windows, Node looks in the working directory first for a bare command name, so a planted
+ * executable there would run in place of the real tool. Entries the user put in PATH are trusted.
  */
 export function findExecutable(name) {
-  const here = resolve(process.cwd()).toLowerCase();
   const extensions = windows ? ['.exe', '.com'] : [''];
-  for (const entry of (process.env.PATH ?? process.env.Path ?? '').split(delimiter)) {
+  for (const entry of (process.env.PATH ?? '').split(delimiter)) {
     const directory = entry.replace(/^"|"$/g, '');
-    if (!directory || !isAbsolute(directory) || (windows ? resolve(directory).toLowerCase() : resolve(directory)) === (windows ? here : resolve(process.cwd()))) continue;
+    if (!directory || !isAbsolute(directory)) continue;
     for (const extension of extensions) {
       const candidate = join(directory, `${name}${extension}`);
       try {
@@ -41,9 +40,27 @@ export function restrictToCurrentUser(directory) {
     const sid = /"(S-1-[\d-]+)"\s*$/m.exec(identity)?.[1];
     if (!sid) return false;
     const icacls = (args) => execFileSync(join(system, 'icacls.exe'), args, { stdio: 'ignore', windowsHide: true, timeout: 30000 });
-    // Children inherit from the folder: reset them first, then lock only the folder itself.
-    icacls([target, '/reset', '/T', '/C', '/Q']);
+    // Lock the folder itself first, in one call: it stops inheriting from its parent without a
+    // moment in which it is readable by others. Anything created later inherits from it.
     icacls([target, '/inheritance:r', '/grant:r', `*${sid}:(OI)(CI)F`, '*S-1-5-18:(OI)(CI)F', '/C', '/Q']);
+    // Files that already existed keep their old ACLs: reset them once, then remember that we did.
+    const marker = join(target, '.acl-hardened');
+    if (!existsSync(marker)) {
+      if (readdirSync(target).length) icacls([join(target, '*'), '/reset', '/T', '/C', '/Q']);
+      writeFileSync(marker, '');
+    }
     return true;
   } catch { return false; }
+}
+
+/** Returns the login key kept in the data folder, creating it on first use. */
+export function loadAccessKey(directory) {
+  const path = join(directory, 'access.key');
+  try {
+    const value = readFileSync(path, 'utf8').trim();
+    if (/^[a-f0-9]{64}$/.test(value)) return value;
+  } catch { /* Create a new key below. */ }
+  const value = randomBytes(32).toString('hex');
+  writeFileSync(path, `${value}\n`, { mode: 0o600 });
+  return value;
 }

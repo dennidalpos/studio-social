@@ -19,13 +19,18 @@ let busy = false;
 let editing;
 let previewAttachment;
 
-const studioToken = document.querySelector('meta[name="studio-token"]')?.content ?? '';
+// The login cookie is gone or the key changed: reload to show the login instructions.
+function sessionExpired() {
+  window.location.reload();
+  return new Error('Session expired.');
+}
 
 async function api(path, data) {
-  const headers = { 'Content-Type': 'application/json', 'X-Studio-Token': studioToken };
+  const headers = { 'Content-Type': 'application/json' };
   if (state) headers['X-Studio-Mode'] = String(state.demo);
-  const options = data === undefined ? { headers: { 'X-Studio-Token': studioToken } } : { method: 'POST', headers, body: JSON.stringify(data) };
+  const options = data === undefined ? {} : { method: 'POST', headers, body: JSON.stringify(data) };
   const response = await fetch(`/api/${path}`, options);
+  if (response.status === 401) throw sessionExpired();
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Operazione non riuscita.');
   return result;
@@ -269,7 +274,8 @@ function uploadMedia(location, input) {
   if (file.size > 100_000_000) return message('Il file supera 100 MB.', true, notice);
   void change(input, async () => {
     const params = new URLSearchParams({ channel, name: file.name });
-    const response = await fetch(`/api/media?${params}`, { method: 'POST', body: file, headers: { 'X-Studio-Token': studioToken, ...(state ? { 'X-Studio-Mode': String(state.demo) } : {}) } });
+    const response = await fetch(`/api/media?${params}`, { method: 'POST', body: file, headers: state ? { 'X-Studio-Mode': String(state.demo) } : {} });
+    if (response.status === 401) throw sessionExpired();
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Caricamento non riuscito.');
     if (channel !== selectedChannel(location) || (location === 'editor' && (!editor.open || postId !== editing?.id))) return;

@@ -4,15 +4,16 @@ import { DatabaseSync } from 'node:sqlite';
 import { accessSync, constants, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { restrictToCurrentUser } from './hardening.mjs';
+import { loadAccessKey, restrictToCurrentUser } from './hardening.mjs';
 import { providers, ProviderError, channelLimit } from './providers.mjs';
 import { ConfigError, generateCertificate, openConfiguration, validateCertificate } from './configuration.mjs';
-import { MediaError, channelNames, checkMedia, maxUpload, mediaHints, sendMedia, storeMedia, verifyStoredReel } from './media.mjs';
+import { MediaError, channelNames, checkMedia, maxUpload, mediaHints, pruneMedia, sendMedia, storeMedia, verifyStoredReel } from './media.mjs';
 
 process.umask(0o077);
 const root = '.data';
 mkdirSync(root, { recursive: true, mode: 0o700 });
-if (!restrictToCurrentUser(root)) console.warn('Impossibile limitare l’accesso a .data al solo utente corrente. Controlla i permessi della cartella: contiene chiavi e token.');
+if (!restrictToCurrentUser(root)) console.warn('Could not restrict .data to the current user. Check the folder permissions: it holds keys and tokens.');
+const accessKey = loadAccessKey(root);
 const settings = openConfiguration(root, process.env);
 let config = settings.effective();
 let service = providers(config);
@@ -83,11 +84,21 @@ const slots = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', dateSt
 const channels = Object.keys(channelNames);
 let workerBusy = false;
 let oauthState;
-// Per-process token: only the page served by this process can call the API.
-const sessionToken = Buffer.from(randomBytes(32).toString('hex'));
-function validToken(header) {
-  const given = Buffer.from(typeof header === 'string' ? header : '');
-  return given.length === sessionToken.length && timingSafeEqual(given, sessionToken);
+// Login: the key lives in .data/access.key (readable only by this user) and in the URL printed at
+// startup. Opening that URL sets an HttpOnly cookie; every other request needs the cookie, so a
+// process that can only reach the port (not the data folder) cannot use the API.
+const cookieName = 'studio_session';
+const sessionCookie = `${cookieName}=${accessKey}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`;
+function sameKey(given) {
+  const a = Buffer.from(typeof given === 'string' ? given : '');
+  const b = Buffer.from(accessKey);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+function hasSession(req) {
+  return (req.headers.cookie ?? '').split(';').some(part => {
+    const [name, ...value] = part.trim().split('=');
+    return name === cookieName && sameKey(value.join('='));
+  });
 }
 
 function accountFor(channel) {
@@ -218,10 +229,20 @@ async function generateForPlan() {
   }
 }
 
+let lastPrune = 0;
+function pruneUnusedMedia() {
+  lastPrune = Date.now();
+  const used = new Set(db.prepare('SELECT media_id FROM posts WHERE media_id IS NOT NULL').all().map(row => row.media_id));
+  const planned = get('plan')?.mediaId;
+  if (planned) used.add(planned);
+  try { pruneMedia(db, mediaDir, used); } catch { console.error('Media cleanup failed. It will be retried later.'); }
+}
+
 async function work() {
   if (workerBusy) return;
   workerBusy = true;
   try {
+    if (Date.now() - lastPrune > 3_600_000) pruneUnusedMedia();
     await generateForPlan();
     const ready = db.prepare("SELECT id FROM posts WHERE status = 'queued' AND due <= ? ORDER BY due LIMIT 15").all(Date.now());
     for (const post of ready) await publishDue(post.id);
@@ -311,6 +332,16 @@ async function serve(req, res) {
   if (req.headers.host !== new URL(requestOrigin).host) return respond(res, 403, { error: `Apri ${requestOrigin}.` });
   const url = new URL(req.url, requestOrigin);
   const path = url.pathname;
+  if (req.method === 'GET' && path === '/' && sameKey(url.searchParams.get('key'))) {
+    res.writeHead(303, { 'Set-Cookie': sessionCookie, Location: '/' });
+    return res.end();
+  }
+  // The LinkedIn callback comes from another site and is protected by its own state value.
+  if (path !== '/auth/linkedin/callback' && !hasSession(req)) {
+    if (req.method !== 'GET' || path !== '/') return respond(res, 401, { error: 'Unauthorized.' });
+    res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end('<!doctype html><meta charset="utf-8"><title>Studio Social</title><p>Apri l’indirizzo con la chiave stampato nel terminale. · Open the address with the key printed in the terminal.</p>');
+  }
   const mutate = req.method === 'POST' || (req.method === 'GET' && path === '/auth/linkedin/callback');
   if (mutate) activeWrites++;
   try {
@@ -318,9 +349,8 @@ async function serve(req, res) {
       const [name, type] = files[path];
       res.writeHead(200, { 'Content-Type': `${type}; charset=utf-8` });
       const body = readFileSync(new URL(`./public/${name}`, import.meta.url));
-      return res.end(name === 'index.html' ? body.toString('utf8').replace('__STUDIO_TOKEN__', sessionToken.toString()) : body);
+      return res.end(body);
     }
-    if (path.startsWith('/api/') && !validToken(req.headers['x-studio-token'])) return respond(res, 403, { error: 'Sessione non valida. Ricarica la pagina.' });
     const view = /^\/media\/([a-f0-9-]+)$/.exec(path);
     if (['GET', 'HEAD'].includes(req.method) && view && mediaKey.test(view[1])) {
       const media = getMedia(view[1]);
@@ -479,6 +509,7 @@ server.listen(port, '127.0.0.1', async () => {
     catch { secureError = `HTTPS non disponibile sulla porta ${securePort}. Controlla la porta e il certificato.`; }
   }
   console.log(`Studio Social — ${origin}${service.demo ? ' (modalità prova)' : ''}`);
+  console.log(`Login (first time in each browser): ${origin}/?key=${accessKey}`);
   setInterval(() => void work(), 15000);
   void work();
 });

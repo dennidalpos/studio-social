@@ -10,7 +10,7 @@ Con [Node.js](https://nodejs.org/) 24 o successivo, apri il terminale nella cart
 npm start
 ```
 
-Apri <http://localhost:3000>. La modalità prova funziona senza dipendenze esterne, chiavi o account e usa un database distinto. Il testo è di esempio e gli invii sono simulati. Per provare il flusso, inserisci un tema, scegli **Genera una bozza**, apri **Modifica** e scegli **Programma** o **Pubblica ora**.
+Al primo accesso da ogni browser apri l’indirizzo con la chiave stampato nel terminale (`http://localhost:3000/?key=…`): imposta un cookie di sessione e poi basta <http://localhost:3000>. La chiave sta in `.data/access.key`; per cambiarla elimina il file e riavvia. La modalità prova funziona senza dipendenze esterne, chiavi o account e usa un database distinto. Il testo è di esempio e gli invii sono simulati. Per provare il flusso, inserisci un tema, scegli **Genera una bozza**, apri **Modifica** e scegli **Programma** o **Pubblica ora**.
 
 ## Configurazione in Studio Social
 

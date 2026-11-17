@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { createReadStream, createWriteStream } from 'node:fs';
+import { createReadStream, createWriteStream, readdirSync, rmSync, statSync } from 'node:fs';
 import { open, rename, rm } from 'node:fs/promises';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -179,6 +179,30 @@ export async function storeMedia(input, dir, channel, originalName) {
     await rename(temporary, path);
     return media;
   } finally { await rm(temporary, { force: true }); }
+}
+
+const storedName = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}(?:\.part)?$/;
+
+/**
+ * Removes uploads that no post or plan uses and that are older than the retention period:
+ * replaced attachments, abandoned uploads, files without a database row and leftover .part files.
+ * `used` is the set of media ids still referenced.
+ */
+export function pruneMedia(db, directory, used, retention = 86_400_000) {
+  const cutoff = Date.now() - retention;
+  const old = (name) => {
+    try { return statSync(join(directory, name)).mtimeMs < cutoff; } catch { return true; }
+  };
+  const known = new Set();
+  for (const { id } of db.prepare('SELECT id FROM media').all()) {
+    known.add(id);
+    if (used.has(id) || !old(id)) continue;
+    db.prepare('DELETE FROM media WHERE id = ?').run(id);
+    rmSync(join(directory, id), { force: true });
+  }
+  for (const name of readdirSync(directory)) {
+    if (!known.has(name) && storedName.test(name) && old(name)) rmSync(join(directory, name), { force: true });
+  }
 }
 
 export function sendMedia(res, metadata, file, range, attachment = false) {
