@@ -417,6 +417,46 @@ const configurationNotice = $('config-notice');
 const modeForm = $('studio-mode');
 const configurationForms = [...document.querySelectorAll('form[data-configuration]')];
 
+// Values to send for a configuration form: a saved secret is left out unless the user typed a new one.
+function collectValues(target) {
+  const formData = new FormData(target);
+  const values = {};
+  for (const input of target.querySelectorAll('input:not([type=checkbox])')) {
+    if (formData.has(`remove-${input.name}`)) values[input.name] = '';
+    else if (input.type !== 'password' || input.value) values[input.name] = input.value;
+  }
+  return values;
+}
+
+// A button that asks the provider which models the key can use, and a list to pick one from.
+function modelPicker(target, input, label) {
+  const row = node('div', 'model-picker');
+  const button = node('button', 'secondary small', 'Elenca modelli');
+  button.type = 'button';
+  const list = node('select', '');
+  list.setAttribute('aria-label', `Modelli disponibili · ${label}`);
+  list.hidden = true;
+  button.addEventListener('click', () => {
+    const notice = target.querySelector('.form-notice');
+    void change(button, async () => {
+      const { models } = await api('models', { group: target.dataset.configuration, values: collectValues(target) });
+      const prompt = node('option', '', 'Scegli un modello');
+      prompt.value = '';
+      list.replaceChildren(prompt, ...models.map(model => {
+        const option = node('option', '', model.label);
+        option.value = model.id;
+        return option;
+      }));
+      list.value = models.some(model => model.id === input.value) ? input.value : '';
+      list.hidden = false;
+      message(`${models.length} modelli disponibili. Scegline uno e salva la configurazione.`, false, notice);
+    }, notice);
+  });
+  list.addEventListener('change', () => { if (list.value) input.value = list.value; });
+  row.append(button, list);
+  return row;
+}
+
 function buildConfigurationForm(target, fields) {
   const controls = fields.map(field => {
     const group = node('div', field.secret ? 'secret-field' : '');
@@ -432,6 +472,7 @@ function buildConfigurationForm(target, fields) {
     if (!field.secret) input.value = field.value;
     label.append(input);
     group.append(label);
+    if (field.models) group.append(modelPicker(target, input, field.label));
     if (field.secret && field.configured) {
       label.append(node('small', '', 'Già salvata. Lascia vuoto per mantenerla.'));
       const removeLabel = node('label', 'check', 'Rimuovi il valore salvato');
@@ -494,12 +535,7 @@ for (const target of configurationForms) {
   target.addEventListener('submit', event => {
     event.preventDefault();
     const group = target.dataset.configuration;
-    const formData = new FormData(target);
-    const values = {};
-    for (const input of target.querySelectorAll('input:not([type=checkbox])')) {
-      if (formData.has(`remove-${input.name}`)) values[input.name] = '';
-      else if (input.type !== 'password' || input.value) values[input.name] = input.value;
-    }
+    const values = collectValues(target);
     void change(event.submitter, async () => {
       const result = await api('configuration', { group, values });
       buildConfigurationForm(target, result.fields[group]);

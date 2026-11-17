@@ -388,6 +388,7 @@ async function serve(req, res) {
     }
     const data = await readBody(req);
     if (path === '/api/configuration') return respond(res, 200, updateConfiguration(data));
+    if (path === '/api/models') return respond(res, 200, await modelsFor(data));
     if (path === '/api/linkedin-https') return respond(res, 200, await configureHttps(data));
     if (path === '/api/linkedin') {
       if (service.demo || !service.linkedin || !secureReady) throw new InputError('Per collegare LinkedIn attiva la modalità reale e completa credenziali e HTTPS nella guida.');
@@ -431,6 +432,12 @@ function describeConfiguration() {
     demo: service.demo, fields: settings.describe(), callback, httpsOrigin: secureOrigin,
     httpsReady: secureReady, httpsError: secureError, certificateAvailable: Boolean(settings.readTls()),
   };
+}
+
+// Lists the models a provider offers, using the typed (unsaved) key or URL when present and the saved ones otherwise.
+async function modelsFor(data) {
+  const updates = settings.changes(data.group, data.values ?? {});
+  return { models: await providers(settings.effective(updates)).generation.listModels(data.group) };
 }
 
 function updateConfiguration(data) {

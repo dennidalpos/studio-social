@@ -112,3 +112,5 @@ dialog .section-heading { margin: 0; }
 #preview-media-option { width: fit-content; margin-top: .85rem; }
 #preview-media .preview-asset { width: 100%; max-height: min(55dvh, 30rem); object-fit: contain; }
 #preview-media .meta { overflow-wrap: anywhere; }
+.model-picker { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin-top: .4rem; }
+.model-picker select { flex: 1 1 14rem; width: auto; }

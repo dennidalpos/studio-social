@@ -11,6 +11,7 @@
 - Playwright end-to-end suite (`npm run test:e2e`) and a GitHub Actions workflow that runs it.
 - Favicon.
 - Hourly cleanup of media no post or plan uses (older than 24 hours).
+- "Elenca modelli" button next to every model field in the provider settings: it asks the provider which models the key can use and fills the field from a list. Unit tests (`npm test`) cover the model listing.
 
 ### Fixed
 - Claude generations no longer fail when thinking tokens use up `max_tokens` (low effort, 6000 tokens).

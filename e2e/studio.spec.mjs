@@ -157,3 +157,35 @@ test('account guides are available', async ({ page }) => {
   await expect(page.locator('#linkedin-guide')).toHaveAttribute('open', '');
   await expect(page.locator('#linkedin-guide')).toContainText('Client ID');
 });
+
+test('lists the models of a provider and fills the model field', async ({ page }) => {
+  let sent;
+  await page.route('**/api/models', async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ json: { models: [
+      { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5 (claude-sonnet-5-5)' },
+      { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5 (claude-haiku-5-5)' },
+    ] } });
+  });
+  await page.getByText('Configura i provider AI').click();
+  await page.locator('summary', { hasText: /^Claude$/ }).click();
+  const claude = page.locator('form[data-configuration="claude"]');
+  await claude.getByLabel('Chiave API Anthropic', { exact: true }).fill('sk-test-key');
+  await claude.getByRole('button', { name: 'Elenca modelli' }).click();
+  const list = claude.getByLabel(/Modelli disponibili/);
+  await expect(list).toBeVisible();
+  await expect(claude.locator('.form-notice')).toContainText('2 modelli disponibili');
+  expect(sent.group).toBe('claude');
+  expect(sent.values.ANTHROPIC_API_KEY).toBe('sk-test-key');
+  await list.selectOption('claude-haiku-5-5');
+  await expect(claude.getByLabel('Modello Claude', { exact: true })).toHaveValue('claude-haiku-5-5');
+});
+
+test('asks for the API key before listing models', async ({ page }) => {
+  await page.getByText('Configura i provider AI').click();
+  await page.locator('summary', { hasText: /^OpenAI$/ }).click();
+  const openai = page.locator('form[data-configuration="openai"]');
+  await openai.getByRole('button', { name: 'Elenca modelli' }).click();
+  await expect(openai.locator('.form-notice')).toContainText('Inserisci la chiave API');
+  await expect(openai.getByLabel(/Modelli disponibili/)).toBeHidden();
+});

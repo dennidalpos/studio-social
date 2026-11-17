@@ -6,6 +6,10 @@ const jsonHeaders = { 'Content-Type': 'application/json' };
 const bearer = (key) => ({ ...jsonHeaders, Authorization: `Bearer ${key}` });
 const textBlocks = (blocks, type) => Array.isArray(blocks) ? blocks.filter(block => block?.type === type && typeof block.text === 'string').map(block => block.text).join('\n') : '';
 
+const anthropicVersion = '2026-10-21';
+// Ids of models that do not write text (embeddings, speech, images, ...): hidden from the lists.
+const notForText = /embed|whisper|tts|dall-e|moderation|transcribe|realtime|audio|image|imagen|veo|aqa|davinci|babbage|rerank/i;
+
 function compatibleUrl(value) {
   const url = new URL(value);
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
@@ -54,6 +58,54 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
 
   const options = Object.entries(definitions).map(([id, config]) => ({ id, label: config.label, model: config.model, ready: demo || Boolean(config.key && config.model && config.endpoint) }));
 
+  async function failed(config, response) {
+    const hints = { 400: 'Controlla il modello e i parametri.', 401: 'Controlla la chiave API e la regione associata.', 403: 'Controlla i permessi della chiave e l’accesso al modello.', 404: 'Controlla endpoint e identificativo del modello.', 429: 'Controlla quota e limiti del provider.' };
+    await response.body?.cancel().catch(() => {});
+    throw new ErrorType(`${config.label} ha risposto con errore ${response.status}. ${hints[response.status] || 'Riprova più tardi.'}`);
+  }
+
+  function modelsUrl(config) {
+    if (!config.endpoint) throw new ErrorType('Controlla che l’URL base sia HTTPS e privo di credenziali, query e frammenti.');
+    return config.endpoint.replace(/\/chat\/completions$/, '/models');
+  }
+
+  // Where each configuration group lists its models. Gemini and Antigravity share one list.
+  const listings = {
+    openai: { service: 'openai', url: () => 'https://api.openai.com/v1/models' },
+    claude: { service: 'claude', url: () => 'https://api.anthropic.com/v1/models?limit=1000' },
+    qwen: { service: 'qwen', url: () => modelsUrl(definitions.qwen) },
+    google: { service: 'gemini', url: () => `${google}/v1beta/openai/models` },
+    compatible: { service: 'compatible', url: () => modelsUrl(definitions.compatible) },
+  };
+
+  async function listModels(group) {
+    if (!Object.hasOwn(listings, group)) throw new ErrorType('Seleziona un servizio valido.');
+    const { service, url } = listings[group];
+    const config = definitions[service];
+    if (!config.key) throw new ErrorType(`Inserisci la chiave API per ${config.label}.`);
+    const headers = service === 'claude' ? { ...bearer(config.key), 'anthropic-version': anthropicVersion } : bearer(config.key);
+    let response;
+    try { response = await fetcher(url(), { headers, redirect: 'error', signal: AbortSignal.timeout(15_000) }); }
+    catch (error) {
+      if (error instanceof ErrorType) throw error;
+      throw new ErrorType(`${config.label} non ha risposto. Verifica connessione ed endpoint.`);
+    }
+    if (!response.ok) await failed(config, response);
+    const data = await response.json().catch(() => null);
+    const items = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : [];
+    const seen = new Set();
+    const models = [];
+    for (const item of items) {
+      const id = typeof item?.id === 'string' ? item.id.replace(/^models\//, '') : '';
+      if (!id || seen.has(id) || (service !== 'claude' && notForText.test(id))) continue;
+      seen.add(id);
+      models.push({ id, label: typeof item.display_name === 'string' && item.display_name ? `${item.display_name} (${id})` : id });
+    }
+    if (!models.length) throw new ErrorType(`${config.label} non ha elencato modelli utilizzabili.`);
+    if (service !== 'claude') models.sort((a, b) => a.id.localeCompare(b.id));
+    return models.slice(0, 300);
+  }
+
   async function generate({ provider, topic, audience, tone, facts, channel, recent = [] }) {
     const selected = validate(provider);
     const config = definitions[selected];
@@ -64,7 +116,7 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     const model = config.model;
     const requests = {
       responses: () => [bearer(config.key), { model, store: false, max_output_tokens: 2500, instructions: system, input }],
-      messages: () => [{ ...bearer(config.key), 'anthropic-version': '2026-10-21' }, { model, max_tokens: 6000, output_config: { effort: 'low' }, system, messages: messages.slice(1) }],
+      messages: () => [{ ...bearer(config.key), 'anthropic-version': anthropicVersion }, { model, max_tokens: 6000, output_config: { effort: 'low' }, system, messages: messages.slice(1) }],
       chat: () => [bearer(config.key), { model, messages, ...(selected === 'qwen' ? { max_tokens: 2500 } : {}), ...(selected === 'qwen' && model === 'qwen3.7-plus' ? { enable_thinking: false } : {}), ...(selected === 'gemini' ? { max_completion_tokens: 4000 } : {}) }],
       agent: () => [{ ...jsonHeaders, 'x-goog-api-key': config.key }, { agent: value('ANTIGRAVITY_AGENT', 'antigravity-preview-05-2026'), input, system_instruction: system, tools: [], agent_config: { type: 'antigravity', model, max_total_tokens: 12_000 } }],
     };
@@ -73,11 +125,7 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     try {
       response = await fetcher(config.endpoint, { method: 'POST', headers, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(config.kind === 'agent' ? 120_000 : 60_000) });
     } catch { throw new ErrorType(`${config.label} non ha risposto. Verifica connessione ed endpoint.`); }
-    if (!response.ok) {
-      const hints = { 400: 'Controlla il modello e i parametri.', 401: 'Controlla la chiave API e la regione associata.', 403: 'Controlla i permessi della chiave e l’accesso al modello.', 404: 'Controlla endpoint e identificativo del modello.', 429: 'Controlla quota e limiti del provider.' };
-      await response.body?.cancel().catch(() => {});
-      throw new ErrorType(`${config.label} ha risposto con errore ${response.status}. ${hints[response.status] || 'Riprova più tardi.'}`);
-    }
+    if (!response.ok) await failed(config, response);
     const data = await response.json().catch(() => null);
     const extract = {
       responses: () => data?.status === 'completed' && Array.isArray(data.output) && data.output.filter(item => item?.type === 'message').map(item => textBlocks(item.content, 'output_text')).join('\n'),
@@ -97,5 +145,5 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     return content;
   }
 
-  return { defaultProvider, options, validate, generate };
+  return { defaultProvider, options, validate, generate, listModels };
 }
