@@ -518,7 +518,7 @@ server.listen(port, '127.0.0.1', async () => {
     try { await listenHttps(validateCertificate(credentials)); }
     catch { secureError = `HTTPS non disponibile sulla porta ${securePort}. Controlla la porta e il certificato.`; }
   }
-  console.log(`Studio Social — ${origin}${service.demo ? ' (modalità prova)' : ''}`);
+  console.log(`Studio Social — ${origin}${service.demo ? ' (demo mode)' : ''}`);
   console.log(`Login (first time in each browser): ${origin}/?key=${accessKey}`);
   setInterval(() => void work(), 15000);
   void work();
