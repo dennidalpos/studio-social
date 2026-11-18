@@ -144,7 +144,7 @@ function selectMedia(id, channel, required = false) {
   if (id != null && !media) throw new MediaError('Allegato non trovato. Carica di nuovo il file.');
   checkMedia(channel, media, required);
   if (required && !service.demo && channel === 'instagram' && media?.duration === null && !service.instagramPhotos) {
-    throw new MediaError('Per pubblicare foto su Instagram imposta la cartella e l’URL pubblico nella guida Instagram in Account.');
+    throw new MediaError('Per pubblicare foto su Instagram imposta la cartella e l’indirizzo pubblico nella guida Instagram, in Collegamenti.');
   }
   return media;
 }
@@ -274,7 +274,7 @@ function respond(res, code, data) {
 }
 
 async function readBody(req) {
-  if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] ?? '')) throw new InputError('Formato richiesta non valido.');
+  if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] ?? '')) throw new InputError('Il programma ha inviato la richiesta in un formato che non riconosco. Ricarica la pagina e riprova.');
   let size = 0;
   const chunks = [];
   for await (const chunk of req) {
@@ -283,8 +283,8 @@ async function readBody(req) {
     chunks.push(chunk);
   }
   let data;
-  try { data = JSON.parse(Buffer.concat(chunks)); } catch { throw new InputError('Richiesta non valida.'); }
-  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new InputError('Richiesta non valida.');
+  try { data = JSON.parse(Buffer.concat(chunks)); } catch { throw new InputError('Non ho capito la richiesta. Ricarica la pagina e riprova.'); }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new InputError('Non ho capito la richiesta. Ricarica la pagina e riprova.');
   return data;
 }
 
@@ -323,7 +323,7 @@ function updatePost(id, data) {
       .run(field(data.content, channelLimit(post.channel), 'Post', !media), media?.id ?? null, id);
     return;
   }
-  if (data.action !== 'queue') throw new InputError('Azione non valida.');
+  if (data.action !== 'queue') throw new InputError('Questa azione non è disponibile per il post. Ricarica la pagina e riprova.');
   if (post.channel === 'tiktok') throw new InputError('Scarica il media e pubblica nell’app TikTok.');
   const media = selectMedia(mediaId, post.channel, true);
   const account = accountFor(post.channel);
@@ -336,7 +336,7 @@ function updatePost(id, data) {
 }
 
 function redirect(res, result) {
-  res.writeHead(303, { Location: `${origin}/?linkedin=${result}#account` });
+  res.writeHead(303, { Location: `${origin}/?linkedin=${result}#collegamenti` });
   res.end();
 }
 
@@ -399,7 +399,7 @@ async function serve(req, res) {
       } catch { return redirect(res, 'failed'); }
     }
     if (req.method !== 'POST') return respond(res, 404, { error: 'Pagina non trovata.' });
-    if (req.headers.origin !== requestOrigin) return respond(res, 403, { error: 'Origine della richiesta non valida.' });
+    if (req.headers.origin !== requestOrigin) return respond(res, 403, { error: 'La richiesta arriva da un’altra pagina e viene rifiutata. Usa Studio Social dall’indirizzo stampato nel terminale.' });
     if (req.headers['x-studio-mode'] && req.headers['x-studio-mode'] !== String(service.demo)) {
       return respond(res, 409, { error: 'La modalità è cambiata. Aggiorna la pagina e riprova.' });
     }
@@ -411,29 +411,32 @@ async function serve(req, res) {
       return respond(res, 201, media);
     }
     const data = await readBody(req);
+    // Closing the page or pressing Cancel drops the connection: stop the AI call and save nothing.
+    const closed = new AbortController();
+    res.on('close', () => { if (!res.writableFinished) closed.abort(); });
     if (path === '/api/configuration') return respond(res, 200, updateConfiguration(data));
     if (path === '/api/models') return respond(res, 200, await modelsFor(data));
     // AI helpers: they only return text; nothing is saved until the user saves it.
     if (path === '/api/compose') {
       const channel = channelFrom(data.channel);
-      return respond(res, 200, { text: await service.generation.compose({ provider: service.generation.validate(getPlan().provider), prompt: field(data.prompt, 1500, 'Richiesta', true), channel, language: data.language === 'en' ? 'en' : 'it', web: data.web === true }) });
+      return respond(res, 200, { text: await service.generation.compose({ provider: service.generation.validate(getPlan().provider), prompt: field(data.prompt, 1500, 'Richiesta', true), channel, language: data.language === 'en' ? 'en' : 'it', web: data.web === true, signal: closed.signal }) });
     }
     if (path === '/api/improve') {
       const input = brief(data, false);
       if (!input.topic && !input.audience && !input.tone && !input.facts) throw new InputError('Scrivi almeno una parola in uno dei campi.');
-      return respond(res, 200, { fields: await service.generation.improve({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), language: data.language === 'en' ? 'en' : 'it', web: data.web === true }) });
+      return respond(res, 200, { fields: await service.generation.improve({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), language: data.language === 'en' ? 'en' : 'it', web: data.web === true, signal: closed.signal }) });
     }
     if (path === '/api/linkedin-https') return respond(res, 200, await configureHttps(data));
     if (path === '/api/linkedin') {
-      if (service.demo || !service.linkedin || !secureReady) throw new InputError('Per collegare LinkedIn scegli «Pubblicazione» in Account e completa credenziali e HTTPS nella guida.');
+      if (service.demo || !service.linkedin || !secureReady) throw new InputError('Per collegare LinkedIn scegli «Pubblicazione» dal pulsante di modalità in alto e completa credenziali e HTTPS nella guida LinkedIn.');
       oauthState = { value: randomBytes(32).toString('hex'), expires: Date.now() + 10 * 60_000 };
       return respond(res, 200, { url: service.authorizeLinkedin(callback, oauthState.value) });
     }
     if (path === '/api/facebook') {
-      if (service.demo || !service.facebook) throw new InputError('Inserisci ID e token nella guida Facebook in Account.');
+      if (service.demo || !service.facebook) throw new InputError('Inserisci ID e token nella guida Facebook, in Collegamenti.');
       set('facebook', await service.connectFacebook());
     } else if (path === '/api/instagram') {
-      if (service.demo || !service.instagram) throw new InputError('Inserisci il token della Pagina nella guida Instagram in Account.');
+      if (service.demo || !service.instagram) throw new InputError('Inserisci il token della Pagina nella guida Instagram, in Collegamenti.');
       const account = await service.connectInstagram();
       set('instagram', { ...account, pageId: config.INSTAGRAM_PAGE_ID || config.FACEBOOK_PAGE_ID });
     } else if (path === '/api/disconnect') {
@@ -444,7 +447,7 @@ async function serve(req, res) {
     } else if (path === '/api/generate') {
       const input = { ...brief(data, true), language: data.language === 'en' ? 'en' : 'it' };
       const media = selectMedia(data.mediaId, input.channel);
-      addPost(input.channel, await service.generate({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), web: data.web === true, recent: recentPosts(input.channel) }), 'draft', null, media?.id ?? null);
+      addPost(input.channel, await service.generate({ ...input, provider: service.generation.validate(data.provider ?? getPlan().provider), web: data.web === true, recent: recentPosts(input.channel), signal: closed.signal }), 'draft', null, media?.id ?? null);
     } else if (path === '/api/provider') {
       // The AI service used by the plan and by the simple view; the rest of the plan stays as it is.
       const provider = service.generation.validate(data.provider, false);
@@ -465,7 +468,7 @@ async function serve(req, res) {
     return respond(res, 200, status());
   } catch (error) {
     if (error instanceof InputError || error instanceof ConfigError || error instanceof ProviderError || error instanceof MediaError) return respond(res, 400, { error: error.message });
-    return respond(res, 500, { error: 'Operazione non riuscita. Controlla la configurazione locale.' });
+    return respond(res, 500, { error: 'Qualcosa non ha funzionato nel programma. Guarda l’errore nel terminale in cui gira Studio Social, poi riprova.' });
   } finally { if (mutate) activeWrites--; }
 }
 
@@ -492,7 +495,7 @@ function updateConfiguration(data) {
   const nextConfig = settings.effective(updates);
   if (data.group === 'instagram') {
     const { INSTAGRAM_PUBLIC_DIR: directory, INSTAGRAM_PUBLIC_BASE_URL: url } = nextConfig;
-    if (Boolean(directory) !== Boolean(url)) throw new ConfigError('Per le foto compila sia la cartella sia l’URL HTTPS. Lascia vuoti entrambi per pubblicare solo Reel.');
+    if (Boolean(directory) !== Boolean(url)) throw new ConfigError('Per le foto compila sia la cartella sia l’indirizzo pubblico https://. Lascia vuoti entrambi per pubblicare solo Reel.');
     if (directory) {
       try {
         if (!statSync(directory).isDirectory()) throw new Error();
@@ -541,7 +544,7 @@ async function listenHttps(credentials) {
 async function configureHttps(data) {
   if (tlsCert) throw new ConfigError('HTTPS è già attivo sul server principale.');
   if (activeWrites > 1) throw new ConfigError('Attendi che termini l’altra operazione e riprova.');
-  if (!['generate', 'import'].includes(data.action)) throw new ConfigError('Azione HTTPS non valida.');
+  if (!['generate', 'import'].includes(data.action)) throw new ConfigError('Azione HTTPS sconosciuta. Ricarica la pagina e riprova.');
   const credentials = data.action === 'generate' ? await generateCertificate(root) : validateCertificate(data);
   try { await listenHttps(credentials); }
   catch { throw new ConfigError(`Impossibile avviare HTTPS sulla porta ${securePort}. Libera la porta e riprova.`); }

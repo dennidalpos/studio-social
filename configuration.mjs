@@ -14,18 +14,18 @@ const secret = (name, label) => field(name, label, { secret: true });
 export const groups = {
   linkedin: [field('LINKEDIN_CLIENT_ID', 'Client ID'), secret('LINKEDIN_CLIENT_SECRET', 'Client Secret'), field('LINKEDIN_VERSION', 'Versione API video', { placeholder: '202610', pattern: '^\\d{6}$' })],
   facebook: [field('FACEBOOK_PAGE_ID', 'ID Pagina Facebook', { pattern: '^\\d+$' }), secret('FACEBOOK_PAGE_TOKEN', 'Token della Pagina'), field('FACEBOOK_GRAPH_VERSION', 'Versione Graph API di Meta', { placeholder: 'v27.0', pattern: '^v\\d+\\.\\d+$' })],
-  instagram: [field('INSTAGRAM_PAGE_ID', 'ID della Pagina collegata', { pattern: '^\\d+$' }), secret('INSTAGRAM_PAGE_TOKEN', 'Token della Pagina collegata'), field('INSTAGRAM_PUBLIC_DIR', 'Cartella già servita via HTTPS'), field('INSTAGRAM_PUBLIC_BASE_URL', 'URL pubblico della cartella', { url: true, placeholder: 'https://media.example.com/instagram/' })],
+  instagram: [field('INSTAGRAM_PAGE_ID', 'ID della Pagina collegata', { pattern: '^\\d+$' }), secret('INSTAGRAM_PAGE_TOKEN', 'Token della Pagina collegata'), field('INSTAGRAM_PUBLIC_DIR', 'Cartella già servita via HTTPS'), field('INSTAGRAM_PUBLIC_BASE_URL', 'Indirizzo pubblico della cartella', { url: true, placeholder: 'https://media.example.com/instagram/' })],
   openai: [secret('OPENAI_API_KEY', 'Chiave API OpenAI'), field('OPENAI_MODEL', 'Modello OpenAI', { models: true, placeholder: 'gpt-5-mini' })],
   claude: [secret('ANTHROPIC_API_KEY', 'Chiave API Anthropic'), field('ANTHROPIC_MODEL', 'Modello Claude', { models: true, placeholder: 'claude-sonnet-5-5' })],
-  qwen: [secret('QWEN_API_KEY', 'Chiave API QwenCloud'), field('QWEN_MODEL', 'Modello QwenCloud', { models: true, placeholder: 'qwen3.7-plus' }), field('QWEN_BASE_URL', 'URL base QwenCloud', { url: true, placeholder: 'https://ap-southeast-1.maas.qwencloudapi.com/compatible-mode/v1' })],
+  qwen: [secret('QWEN_API_KEY', 'Chiave API QwenCloud'), field('QWEN_MODEL', 'Modello QwenCloud', { models: true, placeholder: 'qwen3.7-plus' }), field('QWEN_BASE_URL', 'Indirizzo base QwenCloud', { url: true, placeholder: 'https://ap-southeast-1.maas.qwencloudapi.com/compatible-mode/v1' })],
   google: [secret('GEMINI_API_KEY', 'Chiave Gemini API'), field('GEMINI_MODEL', 'Modello Gemini', { models: true, placeholder: 'gemini-3.8-flash' }), field('ANTIGRAVITY_AGENT', 'ID dell’agente Antigravity', { placeholder: 'antigravity-preview-05-2026' }), field('ANTIGRAVITY_MODEL', 'Modello Antigravity', { models: true, placeholder: 'gemini-3.8-flash' })],
-  compatible: [secret('COMPAT_API_KEY', 'Chiave API del servizio'), field('COMPAT_BASE_URL', 'URL base Chat Completions', { url: true }), field('COMPAT_MODEL', 'Identificativo del modello', { models: true })],
+  compatible: [secret('COMPAT_API_KEY', 'Chiave API del servizio'), field('COMPAT_BASE_URL', 'Indirizzo base Chat Completions', { url: true }), field('COMPAT_MODEL', 'Identificativo del modello', { models: true })],
   wait: [field('AI_TIMEOUT_MINUTES', 'Attesa massima della risposta (minuti)', { placeholder: '1', pattern: '^\\d{1,2}(?:[.,]\\d{1,2})?$' })],
 };
 
 function httpsUrl(value, label) {
   let url;
-  try { url = new URL(value); } catch { throw new ConfigError(`${label}: inserisci un URL HTTPS valido.`); }
+  try { url = new URL(value); } catch { throw new ConfigError(`${label}: inserisci un indirizzo che inizi con https://.`); }
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new ConfigError(`${label}: usa HTTPS e ometti credenziali, query e frammenti.`);
 }
 
@@ -55,9 +55,9 @@ export function openConfiguration(directory, legacy) {
     const fields = groups[group];
     return Object.fromEntries(Object.entries(data).map(([name, raw]) => {
       const item = fields.find(field => field.name === name);
-      if (!item || typeof raw !== 'string' || raw.length > 4096 || /[\r\n\0]/.test(raw)) throw new ConfigError('Campo di configurazione non valido.');
+      if (!item || typeof raw !== 'string' || raw.length > 4096 || /[\r\n\0]/.test(raw)) throw new ConfigError('Uno dei campi contiene caratteri non ammessi o è troppo lungo. Controlla i valori e riprova.');
       const value = raw.trim();
-      if (value && item.pattern && !new RegExp(item.pattern).test(value)) throw new ConfigError(`${item.label}: formato non valido.`);
+      if (value && item.pattern && !new RegExp(item.pattern).test(value)) throw new ConfigError(`${item.label}: il formato non è corretto: controlla il valore inserito.`);
       if (value && item.url) httpsUrl(value, item.label);
       return [name, value];
     }));

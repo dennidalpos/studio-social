@@ -70,7 +70,7 @@ The server listens only on the local machine, is meant for a single process and 
 
 ## Configuration in the app
 
-Open **Account** in the dashboard. Each social card has a guide, links to the official portals and, when available, fields to save credentials. Under **Come vuoi usare Studio Social?** choose **Prova** (demo: nothing is published) or **Pubblicazione** (real accounts) and press **Salva scelta**. The two keep separate drafts, attachments and calendars. When you switch to **Pubblicazione**, any calendar already set for it resumes.
+Open **Collegamenti** in the advanced view. Each social card has a guide, links to the official portals and, when available, fields to save credentials. Press the mode pill in the top bar, then under **Come vuoi usare Studio Social?** choose **Prova** (demo: nothing is published) or **Pubblicazione** (real accounts) and press **Salva scelta**. The two keep separate drafts, attachments and calendars. When you switch to **Pubblicazione**, any calendar already set for it resumes.
 
 - **LinkedIn.** Register the callback shown in the profile guide, save Client ID and Client Secret and enable local HTTPS. You can generate a certificate from the app if OpenSSL is available, or paste an existing PEM certificate and key. The browser or the system must accept the `localhost` certificate to complete the OAuth return. The HTTPS managed by the app normally uses the port after the main one; the guide always shows the actual address.
 - **Facebook.** Use the ID and token of a Page you can manage. The guide says where to get the token and which permissions to request. The connection check identifies the Page. Meta verifies write permissions when you send the first post.
@@ -79,7 +79,7 @@ Open **Account** in the dashboard. Each social card has a guide, links to the of
 
 ### AI providers
 
-Open **Account → Configura i provider AI**, choose the service and save the API key. For live generation, switch to real mode and choose the provider in **Piano editoriale → Provider AI**. **Genera una bozza** uses the current choice; **Salva piano** stores it for recurring generation. You can also write and schedule by hand without any AI provider.
+Open **Impostazioni AI → Configura l’AI** (the same dialog opens from the simple view), choose the service and save the key. For live generation, switch to real mode and choose the service in **Piano editoriale → Servizio AI**. While the AI works you see the elapsed time and can press **Annulla**. **Genera una bozza** uses the current choice; **Salva piano** stores it for recurring generation. You can also write and schedule by hand without any AI provider.
 
 | Service | Settings |
 | --- | --- |

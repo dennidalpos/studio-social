@@ -26,14 +26,14 @@ export function providers(env, fetcher = fetch) {
     try {
       result = await fetcher(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(timeout) });
     } catch {
-      throw new ProviderError(`${service} non ha risposto.`, publishing);
+      throw new ProviderError(`${service} non ha risposto. Controlla la connessione a internet e riprova.`, publishing);
     }
     if (!result.ok) {
       const data = await result.json().catch(() => null);
       const expired = ['Facebook', 'Instagram'].includes(service) && data?.error?.code === 190;
       const message = expired || result.status === 401
         ? `${service} ha rifiutato il token. Ricollega l’account.`
-        : `${service} ha risposto con errore ${result.status}. Verifica permessi e configurazione.`;
+        : `${service} ha rifiutato la richiesta (codice ${result.status}). Controlla i permessi dell’app e le credenziali salvate.`;
       throw new ProviderError(message, publishing && result.status >= 500);
     }
     return result;

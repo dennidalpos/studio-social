@@ -19,7 +19,7 @@ export function mediaPublishing(env, { request, bearer, json, ProviderError }) {
   let imageUrl;
   if (imageBase && imageDir) {
     const url = new URL(imageBase.endsWith('/') ? imageBase : `${imageBase}/`);
-    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('INSTAGRAM_PUBLIC_BASE_URL richiede una base HTTPS senza credenziali.');
+    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('INSTAGRAM_PUBLIC_BASE_URL deve essere un indirizzo https:// senza credenziali.');
     imageUrl = url;
   }
 
@@ -36,7 +36,7 @@ export function mediaPublishing(env, { request, bearer, json, ProviderError }) {
   function uploadUrl(value, domain) {
     const url = new URL(value);
     if (url.protocol !== 'https:' || url.username || url.password || url.port || !(url.hostname === domain || url.hostname.endsWith(`.${domain}`))) {
-      throw new ProviderError('Il provider ha restituito un indirizzo di caricamento inatteso.');
+      throw new ProviderError('Il servizio ha indicato un indirizzo di caricamento non previsto: il file non è stato inviato. Riprova.');
     }
     return url.href;
   }
@@ -126,7 +126,7 @@ export function mediaPublishing(env, { request, bearer, json, ProviderError }) {
     let publicPath;
     const headers = { ...bearer(instagramToken), 'Content-Type': 'application/x-www-form-urlencoded' };
     const send = (path, body, publishing = false) => request('Instagram', `${graph}/${account.id}/${path}`, { method: 'POST', headers, body: new URLSearchParams(body) }, publishing);
-    if (photo && !imageUrl) throw new ProviderError('Per le foto Instagram imposta la cartella e l’URL pubblico nella guida Instagram in Account.');
+    if (photo && !imageUrl) throw new ProviderError('Per le foto Instagram imposta la cartella e l’indirizzo pubblico nella guida Instagram, in Collegamenti.');
     try {
       if (photo) {
         const file = `${randomUUID()}.jpg`;

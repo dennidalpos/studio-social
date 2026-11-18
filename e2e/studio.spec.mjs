@@ -178,12 +178,12 @@ test('uploads a photo through the interface', async ({ page }) => {
 
 test('the bar stays visible, the menu marks the section and back-to-top works', async ({ page }) => {
   await expect(page.locator('#to-top')).toBeHidden();
-  await page.getByRole('link', { name: 'Account' }).click();
-  await expect(page.locator('#account')).toBeInViewport();
-  await expect(page.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'location');
+  await page.getByRole('link', { name: 'Collegamenti' }).click();
+  await expect(page.locator('#collegamenti')).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Collegamenti' })).toHaveAttribute('aria-current', 'location');
   // The bar is pinned and the section starts below it, not under it.
   const bar = await page.locator('.bar').boundingBox();
-  const section = await page.locator('#account').boundingBox();
+  const section = await page.locator('#collegamenti').boundingBox();
   expect(bar.y).toBe(0);
   expect(section.y).toBeGreaterThanOrEqual(bar.height - 1);
   await expect(page.locator('#to-top')).toBeVisible();
@@ -191,20 +191,22 @@ test('the bar stays visible, the menu marks the section and back-to-top works', 
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.locator('#to-top')).toBeHidden();
   // A reload never restores a scroll position in the middle of the page.
-  await page.getByRole('link', { name: 'Account' }).click();
+  await page.getByRole('link', { name: 'Collegamenti' }).click();
   await page.reload();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0); // explicit #account is honoured
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0); // explicit #collegamenti is honoured
   await page.goto('/');
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
 
-test('the mode pill explains the mode and leads to the setting', async ({ page }) => {
+test('the mode pill explains the mode and opens the setting', async ({ page }) => {
   const pill = page.locator('#environment');
   await expect(pill).toHaveAttribute('title', /nessun post esce/);
   await pill.click();
-  await expect(page.locator('#account')).toBeInViewport();
+  await expect(page.locator('#mode-dialog')).toBeVisible();
   await expect(page.getByLabel('Come vuoi usare Studio Social?')).toBeVisible();
   await expect(page.locator('#mode-help')).toContainText('nulla arriva ai social');
+  await page.locator('#close-mode').click();
+  await expect(page.locator('#mode-dialog')).toBeHidden();
 });
 
 test('errors are announced as alerts and stay visible under the bar', async ({ page }) => {
@@ -212,7 +214,7 @@ test('errors are announced as alerts and stay visible under the bar', async ({ p
   await page.getByRole('button', { name: 'Salva bozza' }).click();
   await expect(page.locator('#editor-notice')).toHaveAttribute('role', 'alert');
   await page.locator('#close-editor').click();
-  await page.getByRole('link', { name: 'Account' }).click();
+  await page.locator('#environment').click();
   await page.getByRole('button', { name: 'Salva scelta' }).click();
   await expect(page.locator('#config-notice')).toHaveText('È già la scelta attiva.');
 });
@@ -223,6 +225,31 @@ test('simple: opens without accounts, plan or mode pill', async ({ page }) => {
   await expect(page.locator('#account')).toBeHidden();
   await expect(page.locator('#environment')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Copia e apri LinkedIn' })).toBeDisabled();
+});
+
+test('simple: only Copia e apri is a solid primary button', async ({ page }) => {
+  await expect(page.locator('#simple-form button:not(.secondary)')).toHaveCount(1);
+  await expect(page.locator('#simple-form button:not(.secondary)')).toHaveId('simple-open');
+  await expect(page.locator('#simple-ai')).toHaveClass(/secondary/);
+  // The web toggle sits next to the AI field, before the AI buttons.
+  const order = await page.evaluate(() => {
+    const position = (id) => document.getElementById(id).compareDocumentPosition(document.getElementById('simple-ai'));
+    return position('simple-prompt') & Node.DOCUMENT_POSITION_FOLLOWING && position('simple-web') & Node.DOCUMENT_POSITION_FOLLOWING;
+  });
+  expect(order).toBeTruthy();
+});
+
+test('simple: Svuota asks before clearing text or an attachment', async ({ page }) => {
+  await page.getByLabel('Testo del post').fill('Testo da svuotare');
+  await page.getByRole('button', { name: 'Svuota' }).click();
+  const dialog = page.locator('#confirm-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Svuotare il testo?');
+  await dialog.getByRole('button', { name: 'Annulla' }).click();
+  await expect(page.getByLabel('Testo del post')).toHaveValue('Testo da svuotare');
+  await page.getByRole('button', { name: 'Svuota' }).click();
+  await dialog.getByRole('button', { name: 'Svuota' }).click();
+  await expect(page.getByLabel('Testo del post')).toHaveValue('');
 });
 
 test('simple: previews the text and counts characters per social', async ({ page }) => {
@@ -263,6 +290,61 @@ test('simple: the AI button writes the post from a request', async ({ page }) =>
   await expect(page.getByLabel('Testo del post')).toHaveValue(/^Annuncia il corso di fotografia/);
   await expect(page.locator('#simple-preview')).toContainText('Annuncia il corso di fotografia');
   await expect(page.getByRole('button', { name: 'Copia e apri LinkedIn' })).toBeEnabled();
+});
+
+test('simple: the AI wait shows progress, can be cancelled and leaves the text unchanged', async ({ page }) => {
+  await page.route('**/api/compose', () => { /* never answers: the call stays pending until it is cancelled */ });
+  await page.getByLabel('Testo del post').fill('Testo già scritto');
+  await page.getByLabel('Chiedi all’AI').fill('Annuncia il corso');
+  await page.getByRole('button', { name: 'Scrivi con l’AI' }).click();
+  await page.locator('#confirm-dialog').getByRole('button', { name: 'Sostituisci' }).click();
+  const progress = page.locator('#simple-progress');
+  await expect(progress).toBeVisible();
+  await expect(progress).toContainText('L’AI sta lavorando');
+  await expect(progress.locator('.progress-time')).toHaveText(/^\d+ s$/);
+  await expect(progress.locator('.progress-hint')).toBeHidden();
+  await progress.getByRole('button', { name: 'Annulla' }).click();
+  await expect(page.locator('#simple-notice')).toHaveText('Richiesta annullata. Il testo non è cambiato.');
+  await expect(progress).toBeHidden();
+  await expect(page.getByLabel('Testo del post')).toHaveValue('Testo già scritto');
+  await expect(page.locator('#simple-ai')).toBeEnabled();
+});
+
+test('the AI wait points to the wait-time setting after 30 seconds', async ({ page }) => {
+  await page.clock.install();
+  await page.reload();
+  await expect(page.locator('#environment')).not.toHaveText('Caricamento');
+  await page.route('**/api/generate', () => { /* stays pending */ });
+  await page.getByLabel('Temi').fill('Bozza lenta');
+  await page.getByRole('button', { name: 'Genera una bozza' }).click();
+  const progress = page.locator('#plan-progress');
+  await expect(progress).toBeVisible();
+  await expect(progress.locator('.progress-hint')).toBeHidden();
+  await page.clock.runFor(31_000);
+  await expect(progress.locator('.progress-hint')).toBeVisible();
+  await expect(progress.locator('.progress-hint')).toContainText('tempo di attesa');
+  await progress.getByRole('button', { name: 'Annulla' }).click();
+  await expect(page.locator('#notice')).toHaveText('Richiesta annullata. Nulla è stato modificato.');
+});
+
+test('improving the plan fields can be cancelled or undone', async ({ page }) => {
+  for (const name of ['topic', 'audience', 'tone', 'facts']) await page.locator(`#plan [name=${name}]`).fill('');
+  await page.getByLabel('Temi').fill('progetti');
+  await page.route('**/api/improve', () => { /* stays pending until cancelled */ });
+  await page.getByRole('button', { name: 'Migliora i campi con l’AI' }).click();
+  await page.locator('#plan-progress').getByRole('button', { name: 'Annulla' }).click();
+  await expect(page.locator('#notice')).toHaveText('Richiesta annullata. Nulla è stato modificato.');
+  await expect(page.locator('#plan [name=topic]')).toHaveValue('progetti');
+  await expect(page.locator('#plan [name=audience]')).toHaveValue('');
+  await page.unroute('**/api/improve');
+  await page.getByRole('button', { name: 'Migliora i campi con l’AI' }).click();
+  await expect(page.locator('#notice')).toHaveText('Campi migliorati. Controllali e salva il piano.');
+  await expect(page.locator('#plan [name=audience]')).not.toHaveValue('');
+  await page.getByRole('button', { name: 'Annulla le modifiche dell’AI' }).click();
+  await expect(page.locator('#plan [name=topic]')).toHaveValue('progetti');
+  await expect(page.locator('#plan [name=audience]')).toHaveValue('');
+  await expect(page.locator('#notice')).toHaveText('Campi ripristinati come prima del miglioramento.');
+  await expect(page.getByRole('button', { name: 'Annulla le modifiche dell’AI' })).toBeHidden();
 });
 
 test('improves the plan fields from generic words and offers the web toggle', async ({ page }) => {
@@ -324,18 +406,20 @@ test('simple: adds a photo, previews it, copies it and drops it when the social 
 
 test('deletes a draft after confirming, from the card and from the editor', async ({ page }) => {
   const first = await createDraft(page, 'Bozza da eliminare dalla card');
-  page.once('dialog', dialog => { expect(dialog.message()).toContain('Eliminare questo post?'); void dialog.dismiss(); });
+  const confirmation = page.locator('#confirm-dialog');
   await first.getByRole('button', { name: 'Elimina' }).click();
+  await expect(confirmation).toContainText('Eliminare questo post?');
+  await confirmation.getByRole('button', { name: 'Annulla' }).click();
   await expect(first).toBeVisible();
-  page.once('dialog', dialog => void dialog.accept());
   await first.getByRole('button', { name: 'Elimina' }).click();
+  await confirmation.getByRole('button', { name: 'Elimina' }).click();
   await expect(page.locator('#notice')).toHaveText('Post eliminato.');
   await expect(page.locator('#posts article').filter({ hasText: 'Bozza da eliminare dalla card' })).toHaveCount(0);
 
   const second = await createDraft(page, 'Bozza da eliminare dall’editor');
   await second.getByRole('button', { name: 'Modifica' }).click();
-  page.once('dialog', dialog => void dialog.accept());
   await page.locator('#delete-post').click();
+  await confirmation.getByRole('button', { name: 'Elimina' }).click();
   await expect(page.locator('#editor')).not.toBeVisible();
   await expect(page.locator('#posts article').filter({ hasText: 'Bozza da eliminare dall’editor' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Scrivi un post' }).click();
@@ -346,9 +430,15 @@ test('deletes a draft after confirming, from the card and from the editor', asyn
 test('clears all the test posts in demo mode', async ({ page }) => {
   await createDraft(page, 'Prova da svuotare');
   await expect(page.locator('#clear-demo')).toBeVisible();
-  page.once('dialog', dialog => void dialog.accept());
+  const count = await page.locator('#posts .post-item').count();
   await page.locator('#clear-demo').click();
-  await expect(page.locator('#notice')).toHaveText('Post di prova eliminati.');
+  const confirmation = page.locator('#confirm-dialog');
+  await expect(confirmation).toContainText(count === 1 ? 'Eliminare 1 post di prova?' : `Eliminare ${count} post di prova?`);
+  await confirmation.getByRole('button', { name: 'Annulla' }).click();
+  await expect(page.locator('#posts .post-item')).toHaveCount(count);
+  await page.locator('#clear-demo').click();
+  await confirmation.getByRole('button', { name: 'Elimina' }).click();
+  await expect(page.locator('#notice')).toHaveText(count === 1 ? '1 post di prova eliminato.' : `${count} post di prova eliminati.`);
   await expect(page.locator('#posts .post-item')).toHaveCount(0);
   await expect(page.locator('#clear-demo')).toBeHidden();
 });
@@ -367,25 +457,40 @@ test('simple: the draft and the chosen view are remembered', async ({ page }) =>
   await page.getByLabel('Testo del post').fill('Bozza da ritrovare');
   await page.reload();
   await expect(page.getByLabel('Testo del post')).toHaveValue('Bozza da ritrovare');
-  await page.getByRole('button', { name: 'Passa alla modalità avanzata' }).click();
+  await expect(page.getByRole('button', { name: 'Semplice' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Avanzata' }).click();
+  await expect(page.getByRole('button', { name: 'Avanzata' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('heading', { name: /Calendario/ })).toBeVisible();
   await expect(page.locator('#simple')).toBeHidden();
   await page.reload();
   await expect(page.getByRole('heading', { name: /Calendario/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Passa alla modalità semplice' }).click();
+  await page.getByRole('button', { name: 'Semplice' }).click();
   await expect(page.getByRole('heading', { name: /Scrivi, controlla/ })).toBeVisible();
 });
 
 test('account guides open one at a time', async ({ page }) => {
-  await page.getByRole('link', { name: 'Account' }).click();
+  await page.getByRole('link', { name: 'Collegamenti' }).click();
   await page.getByText('Configura LinkedIn').click();
   await page.getByText('Configura Facebook').click();
   await expect(page.locator('#facebook-guide')).toHaveAttribute('open', '');
   await expect(page.locator('#linkedin-guide')).not.toHaveAttribute('open', '');
 });
 
+test('the Account section is split into Collegamenti and Impostazioni AI', async ({ page }) => {
+  await expect(page.locator('nav a')).toHaveText(['Piano', 'Post', 'Collegamenti', 'Impostazioni AI']);
+  await expect(page.locator('#collegamenti')).toContainText('LinkedIn');
+  await expect(page.locator('#collegamenti #studio-mode')).toHaveCount(0);
+  await expect(page.locator('#collegamenti form[data-configuration="openai"]')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Impostazioni AI' }).click();
+  await expect(page.locator('#impostazioni-ai')).toBeInViewport();
+  await expect(page.locator('#ai-summary')).toContainText('Prova');
+  await page.locator('#advanced-ai-setup').click();
+  await expect(page.locator('#ai-dialog')).toBeVisible();
+  await expect(page.locator('#ai-dialog form[data-configuration="wait"]')).toBeAttached();
+});
+
 test('account guides are available', async ({ page }) => {
-  await page.getByRole('link', { name: 'Account' }).click();
+  await page.getByRole('link', { name: 'Collegamenti' }).click();
   await page.getByText('Configura LinkedIn').click();
   await expect(page.locator('#linkedin-guide')).toHaveAttribute('open', '');
   await expect(page.locator('#linkedin-guide')).toContainText('Client ID');
@@ -400,9 +505,9 @@ test('lists the models of a provider and fills the model field', async ({ page }
       { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5 (claude-haiku-5-5)' },
     ] } });
   });
-  await page.getByText('Configura i provider AI').click();
-  await page.locator('summary', { hasText: /^Claude$/ }).click();
-  const claude = page.locator('form[data-configuration="claude"]');
+  await page.locator('#advanced-ai-setup').click();
+  await page.locator('#ai-service').selectOption({ label: 'Claude · Anthropic' });
+  const claude = page.locator('#ai-form');
   await claude.getByLabel('Chiave API Anthropic', { exact: true }).fill('sk-test-key');
   await claude.getByRole('button', { name: 'Elenca modelli' }).click();
   const list = claude.getByLabel(/Modelli disponibili/);
@@ -415,9 +520,9 @@ test('lists the models of a provider and fills the model field', async ({ page }
 });
 
 test('asks for the API key before listing models', async ({ page }) => {
-  await page.getByText('Configura i provider AI').click();
-  await page.locator('summary', { hasText: /^OpenAI$/ }).click();
-  const openai = page.locator('form[data-configuration="openai"]');
+  await page.locator('#advanced-ai-setup').click();
+  await page.locator('#ai-service').selectOption({ label: 'OpenAI' });
+  const openai = page.locator('#ai-form');
   await openai.getByRole('button', { name: 'Elenca modelli' }).click();
   await expect(openai.locator('.form-notice')).toContainText('Inserisci la chiave API');
   await expect(openai.getByLabel(/Modelli disponibili/)).toBeHidden();
@@ -428,8 +533,8 @@ test.describe('on a phone', () => {
 
   test('keeps the section menu, does not scroll sideways and has 44px targets', async ({ page }) => {
     await expect(page.getByRole('navigation', { name: 'Navigazione' })).toBeVisible();
-    await page.getByRole('link', { name: 'Account' }).click();
-    await expect(page.locator('#account')).toBeInViewport();
+    await page.getByRole('link', { name: 'Collegamenti' }).click();
+    await expect(page.locator('#collegamenti')).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBe(0);
     const short = await page.evaluate(() => [...document.querySelectorAll('button, select, summary, input:not([type=hidden]):not([type=checkbox]):not([type=radio])')]
       .filter((element) => { const box = element.getBoundingClientRect(); return box.width && box.height && box.height < 43.5; })
@@ -448,8 +553,21 @@ test.describe('simple view on a phone', () => {
       .filter((element) => { const box = element.getBoundingClientRect(); return box.width && box.height && box.height < 43.5; })
       .map((element) => element.textContent.trim().slice(0, 20) || element.name));
     expect(short).toEqual([]);
-    expect(await page.locator('#view-toggle').innerText()).toBe('Vista avanzata');
+    await expect(page.locator('#view-toggle button')).toHaveText(['Semplice', 'Avanzata']);
     expect(await page.locator('.bar').evaluate((bar) => bar.getBoundingClientRect().height)).toBeLessThan(80);
+    // The language select is wide enough to read, the four channels form a 2x2 grid and the title has no forced break.
+    expect((await page.locator('#language').boundingBox()).width).toBeGreaterThanOrEqual(64);
+    const rows = await page.locator('.channel-choice .days label').evaluateAll((items) => new Set(items.map((item) => Math.round(item.getBoundingClientRect().top))).size);
+    expect(rows).toBe(2);
+    await expect(page.locator('#simple-title .wide-break')).toBeHidden();
+    expect(await page.locator('#simple-title').evaluate((title) => parseFloat(getComputedStyle(title).fontSize))).toBeLessThanOrEqual(40);
+    // The notice scrolls with the page and the back-to-top button stays out of the action rows.
+    expect(await page.locator('#notice').evaluate((notice) => getComputedStyle(notice).position)).toBe('static');
+    await expect(page.locator('#to-top')).toBeHidden();
+    await page.evaluate(() => window.scrollTo(0, 700));
+    await expect(page.locator('#to-top')).toBeHidden();
+    // The segmented view control has 44px targets and fits.
+    for (const choice of await page.locator('#view-toggle button').all()) expect((await choice.boundingBox()).height).toBeGreaterThanOrEqual(43.5);
   });
 });
 
@@ -470,7 +588,7 @@ test('language: English translates the interface and Italian restores it', async
   await expect(page.getByRole('heading', { name: /Editorial calendar/ })).toBeVisible();
   await expect(page.locator('#generate')).toHaveText('Generate a draft');
   await page.locator('#generate').click();
-  await expect(page.locator('#notice')).toHaveText(/Working…|Topics: enter 1 to 350 characters\./);
+  await expect(page.locator('#notice')).toHaveText(/Working…|The AI is working…|Draft generated\.|Topics: enter 1 to 350 characters\./);
   await page.getByLabel('Language').selectOption('it');
   await expect(page.locator('#generate')).toHaveText('Genera una bozza');
 });

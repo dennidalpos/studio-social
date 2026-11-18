@@ -25,17 +25,17 @@ let previewAttachment;
 // The login cookie is gone or the key changed: reload to show the login instructions.
 function sessionExpired() {
   window.location.reload();
-  return new Error('Session expired.');
+  return new Error('La sessione è scaduta. Ricarico la pagina: se serve, riapri il link di accesso stampato nel terminale.');
 }
 
-async function api(path, data) {
+async function api(path, data, signal) {
   const headers = { 'Content-Type': 'application/json' };
   if (state) headers['X-Studio-Mode'] = String(state.demo);
-  const options = data === undefined ? {} : { method: 'POST', headers, body: JSON.stringify(data) };
+  const options = data === undefined ? {} : { method: 'POST', headers, body: JSON.stringify(data), signal };
   const response = await fetch(`/api/${path}`, options);
   if (response.status === 401) throw sessionExpired();
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Operazione non riuscita.');
+  if (!response.ok) throw new Error(result.error || 'Non sono riuscito a completare l’operazione. Riprova tra poco.');
   return result;
 }
 
@@ -50,6 +50,46 @@ function message(text, error = false, target = $('notice')) {
   target.setAttribute('role', error ? 'alert' : 'status');
   if (text && !error && target === $('notice') && !text.endsWith('…')) {
     dismissals.set(target, setTimeout(() => { if (target.textContent === text) message('', false, target); }, 8000));
+  }
+}
+
+// In-page confirmation (replaces the browser's confirm): resolves true only when the person presses the confirm button.
+const confirmDialog = $('confirm-dialog');
+function confirmAction({ title, text, label, danger = true }) {
+  return new Promise(resolve => {
+    if (confirmDialog.open) return resolve(false);
+    $('confirm-title').textContent = t(title);
+    $('confirm-text').textContent = t(text);
+    const ok = $('confirm-ok');
+    ok.textContent = t(label);
+    ok.classList.toggle('danger', danger);
+    confirmDialog.returnValue = '';
+    confirmDialog.addEventListener('close', () => resolve(confirmDialog.returnValue === 'ok'), { once: true });
+    confirmDialog.showModal();
+  });
+}
+
+// A running AI call: elapsed seconds, a Cancel button and, after 30 s, a pointer to the wait-time setting.
+const isCancelled = (error) => error?.name === 'AbortError';
+async function withProgress(holder, run) {
+  const controller = new AbortController();
+  const row = $('progress-template').content.firstElementChild.cloneNode(true);
+  const time = row.querySelector('.progress-time');
+  const hint = row.querySelector('.progress-hint');
+  const started = Date.now();
+  const timer = setInterval(() => {
+    const seconds = Math.floor((Date.now() - started) / 1000);
+    time.textContent = `${seconds} s`;
+    if (seconds >= 30) hint.hidden = false;
+  }, 1000);
+  row.querySelector('.progress-cancel').addEventListener('click', () => controller.abort());
+  holder.replaceChildren(row);
+  holder.hidden = false;
+  try { return await run(controller.signal); }
+  finally {
+    clearInterval(timer);
+    holder.replaceChildren();
+    holder.hidden = true;
   }
 }
 
@@ -85,8 +125,9 @@ const deleteQuestions = {
   unknown: 'Eliminare la copia di questo post da Studio Social? Sul social resta: va rimosso lì a mano.',
 };
 
-function removePost(trigger, post, target = $('notice'), done) {
-  if (!window.confirm(t(deleteQuestions[post.status] ?? 'Eliminare questo post? Non si può annullare.'))) return;
+async function removePost(trigger, post, target = $('notice'), done) {
+  const confirmed = await confirmAction({ title: 'Eliminare il post?', text: deleteQuestions[post.status] ?? 'Eliminare questo post? Non si può annullare.', label: 'Elimina' });
+  if (!confirmed) return trigger.focus();
   void change(trigger, async () => {
     render(await api(`posts/${post.id}`, { action: 'delete' }));
     done?.();
@@ -138,7 +179,9 @@ function postCard(post) {
 function updateSimpleAi() {
   const option = state?.generationProviders.find(provider => provider.id === state.plan.provider);
   if (!option) return;
-  $('simple-ai-status').textContent = state.demo ? 'Prova: il testo scritto dall’AI è di esempio.' : option.ready ? `Servizio AI: ${option.label} · ${option.model}` : `Servizio AI: ${option.label} · da configurare`;
+  const summary = state.demo ? 'Prova: il testo scritto dall’AI è di esempio.' : option.ready ? `Servizio AI: ${option.label} · ${option.model}` : `Servizio AI: ${option.label} · da configurare`;
+  $('simple-ai-status').textContent = summary;
+  $('ai-summary').textContent = summary;
 }
 
 function updateProviderHint() {
@@ -147,7 +190,7 @@ function updateProviderHint() {
   hint.hidden = !option;
   if (!option) return;
   if (state.demo) hint.textContent = 'Generazione di prova.';
-  else if (!option.ready) hint.textContent = 'Configura il provider in Account → Configura i provider AI.';
+  else if (!option.ready) hint.textContent = 'Configura il servizio AI in Impostazioni AI.';
   else hint.textContent = 'Modello ' + option.model;
   updateWebControls();
 }
@@ -157,14 +200,14 @@ function updateWebControls() {
   if (!state) return;
   const supports = (id) => Boolean(state.generationProviders.find(provider => provider.id === id)?.web);
   const toggles = [
-    [$('plan-web'), providerSelect.value, $('plan-web-hint'), 'Inserisci i link nel materiale di riferimento. La risposta può richiedere più tempo.', 'Il provider scelto non supporta la ricerca web.'],
+    [$('plan-web'), providerSelect.value, $('plan-web-hint'), 'Inserisci i link nel materiale di riferimento. La risposta può richiedere più tempo.', 'Il servizio AI scelto non supporta la ricerca web.'],
     [$('simple-web'), state.plan.provider, $('simple-web-hint'), '', 'Questo servizio AI non supporta la ricerca web. Scegline un altro in «Configura l’AI».'],
   ];
   for (const [input, provider, hint, on, off] of toggles) {
     const allowed = supports(provider);
     input.disabled = !allowed;
     if (!allowed) input.checked = false;
-    input.title = allowed ? '' : 'Il provider AI scelto non supporta la ricerca web.';
+    input.title = allowed ? '' : 'Il servizio AI scelto non supporta la ricerca web.';
     hint.textContent = allowed ? on : off;
   }
 }
@@ -394,16 +437,23 @@ function getPlanInput() {
   return { ...values, language: language(), days: data.getAll('day').map(Number), enabled: enabled === 'on', web: web === 'on', mediaId: mediaSelections.plan?.id ?? null };
 }
 
-async function change(trigger, action, target = $('notice')) {
+// With `progress` (a holder element) the call can be cancelled and shows its elapsed time.
+async function change(trigger, action, target = $('notice'), progress) {
   if (busy) return;
   busy = true;
   revision++;
   trigger.disabled = true;
-  message('Operazione in corso…', false, target);
-  try { await action(); } catch (error) { message(error.message, true, target); }
-  finally {
+  message(progress ? 'L’AI sta lavorando…' : 'Operazione in corso…', false, target);
+  let stopped = false;
+  try { await (progress ? withProgress(progress, action) : action()); }
+  catch (error) {
+    stopped = isCancelled(error);
+    if (stopped) message('Richiesta annullata. Nulla è stato modificato.', false, target);
+    else message(error.message, true, target);
+  } finally {
     busy = false;
     trigger.disabled = false;
+    if (stopped) trigger.focus();
   }
 }
 
@@ -454,26 +504,42 @@ planForm.addEventListener('submit', event => {
   event.preventDefault();
   const input = getPlanInput();
   if (input.enabled && input.mode === 'auto' && !state?.demo && !window.confirm(t(`Attivare creazione e pubblicazione automatica su ${channelLabels[input.channel]}?`))) return;
-  void change(event.submitter, async () => { render(await api('plan', input)); message('Piano salvato.'); });
+  void change(event.submitter, async () => { render(await api('plan', input)); clearImproveUndo(); message('Piano salvato.'); });
 });
 $('generate').addEventListener('click', event => {
-  void change(event.currentTarget, async () => { render(await api('generate', getPlanInput())); message('Bozza generata.'); });
+  const input = getPlanInput();
+  void change(event.currentTarget, async signal => { render(await api('generate', input, signal)); message('Bozza generata.'); }, $('notice'), $('plan-progress'));
 });
+const improvedKeys = ['topic', 'audience', 'tone', 'facts'];
+let beforeImprove = null;
+const clearImproveUndo = () => { beforeImprove = null; $('improve-undo').hidden = true; };
 $('improve').addEventListener('click', event => {
   const input = getPlanInput();
-  void change(event.currentTarget, async () => {
-    const { fields } = await api('improve', input);
-    for (const key of ['topic', 'audience', 'tone', 'facts']) planForm.elements[key].value = fields[key];
+  void change(event.currentTarget, async signal => {
+    const { fields } = await api('improve', input, signal);
+    beforeImprove = Object.fromEntries(improvedKeys.map(key => [key, planForm.elements[key].value]));
+    for (const key of improvedKeys) planForm.elements[key].value = fields[key];
+    $('improve-undo').hidden = false;
     message('Campi migliorati. Controllali e salva il piano.');
-  });
+  }, $('notice'), $('plan-progress'));
+});
+$('improve-undo').addEventListener('click', () => {
+  if (!beforeImprove) return;
+  for (const key of improvedKeys) planForm.elements[key].value = beforeImprove[key];
+  clearImproveUndo();
+  $('improve').focus();
+  message('Campi ripristinati come prima del miglioramento.');
 });
 $('new-post').addEventListener('click', () => openEditor());
 $('delete-post').addEventListener('click', event => {
   if (editing) removePost(event.currentTarget, editing, $('editor-notice'), () => editor.close());
 });
-$('clear-demo').addEventListener('click', event => {
-  if (!window.confirm(t('Eliminare tutti i post di prova? Non si può annullare.'))) return;
-  void change(event.currentTarget, async () => { render(await api('clear-demo', {})); message('Post di prova eliminati.'); });
+$('clear-demo').addEventListener('click', async event => {
+  const trigger = event.currentTarget;
+  const count = state.posts.filter(post => deletable.includes(post.status)).length;
+  const confirmed = await confirmAction({ title: 'Svuotare i post di prova?', text: count === 1 ? 'Eliminare 1 post di prova? Non si può annullare.' : `Eliminare ${count} post di prova? Non si può annullare.`, label: 'Elimina' });
+  if (!confirmed) return trigger.focus();
+  void change(trigger, async () => { render(await api('clear-demo', {})); message(count === 1 ? '1 post di prova eliminato.' : `${count} post di prova eliminati.`); });
 });
 $('close-editor').addEventListener('click', () => editor.close());
 $('preview-editor').addEventListener('click', () => openPostPreview({
@@ -641,17 +707,28 @@ async function loadConfiguration() {
   } catch (error) { message(error.message, true, configurationNotice); }
 }
 
-modeForm.addEventListener('submit', event => {
+// The Prova / Pubblicazione choice lives in its own dialog, opened from the pill in the top bar.
+const modeDialog = $('mode-dialog');
+$('environment').addEventListener('click', () => {
+  if (modeDialog.open) return;
+  message('', false, configurationNotice);
+  modeDialog.showModal();
+});
+$('close-mode').addEventListener('click', () => modeDialog.close());
+
+modeForm.addEventListener('submit', async event => {
   event.preventDefault();
+  const trigger = event.submitter;
   const demo = modeForm.elements.mode.value === 'demo';
   if (demo === state?.demo) return message('È già la scelta attiva.', false, configurationNotice);
-  if (!demo && !window.confirm(t('Attivare la pubblicazione sui tuoi account? Riprenderanno calendario e pubblicazioni programmate.'))) return;
-  void change(event.submitter, async () => {
+  if (!demo && !(await confirmAction({ title: 'Attivare la pubblicazione?', text: 'Attivare la pubblicazione sui tuoi account? Riprenderanno calendario e pubblicazioni programmate.', label: 'Attiva', danger: false }))) return;
+  void change(trigger, async () => {
     const data = await api('configuration', { group: 'mode', demo });
     if (editor.open) editor.close();
     render(data.state, true);
     updateHttps(data);
-    message(demo ? 'Prova attiva: nulla viene pubblicato.' : 'Pubblicazione attiva: i post escono sui tuoi account.', false, configurationNotice);
+    modeDialog.close();
+    message(demo ? 'Prova attiva: nulla viene pubblicato.' : 'Pubblicazione attiva: i post escono sui tuoi account.');
   }, configurationNotice);
 });
 
@@ -698,6 +775,7 @@ function openAiDialog() {
 
 aiService.addEventListener('change', showAiForm);
 $('simple-ai-setup').addEventListener('click', openAiDialog);
+$('advanced-ai-setup').addEventListener('click', openAiDialog);
 $('close-ai').addEventListener('click', () => aiDialog.close());
 aiDialog.addEventListener('close', updateSimpleAi);
 aiForm.addEventListener('submit', event => {
@@ -744,7 +822,7 @@ $('import-tls').addEventListener('submit', event => {
 // Navigation: sticky bar height for scroll offsets, current section, back-to-top, always start at the top.
 const bar = document.querySelector('.bar');
 const toTop = $('to-top');
-const sections = ['piano', 'post', 'account'].map(id => ({ id, element: $(id), link: document.querySelector(`nav a[href="#${id}"]`) }));
+const sections = ['piano', 'post', 'collegamenti', 'impostazioni-ai'].map(id => ({ id, element: $(id), link: document.querySelector(`nav a[href="#${id}"]`) }));
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const scrollBehavior = () => (reducedMotion.matches ? 'auto' : 'smooth');
 
@@ -778,7 +856,7 @@ const goTop = () => { window.scrollTo({ top: 0, behavior: scrollBehavior() }); }
 toTop.addEventListener('click', goTop);
 $('home').addEventListener('click', event => { event.preventDefault(); goTop(); });
 // Menu links scroll without adding a history entry per click, so Back leaves the page instead of replaying the clicks.
-for (const link of document.querySelectorAll('nav a, a.mode-pill')) {
+for (const link of document.querySelectorAll('nav a')) {
   link.addEventListener('click', event => {
     event.preventDefault();
     const id = link.getAttribute('href').slice(1);
@@ -899,7 +977,17 @@ async function copyAndOpen(open) {
 
 simpleForm.addEventListener('submit', event => { event.preventDefault(); void copyAndOpen(true); });
 $('simple-copy').addEventListener('click', () => void copyAndOpen(false));
-$('simple-clear').addEventListener('click', () => { simpleText.value = ''; mediaSelections.simple = null; $('simple-file').value = ''; updateMedia('simple'); simpleMessage(''); renderSimple(); simpleText.focus(); });
+$('simple-clear').addEventListener('click', async () => {
+  const what = simpleText.value.trim() && mediaSelections.simple ? 'il testo e l’allegato' : mediaSelections.simple ? 'l’allegato' : 'il testo';
+  if (!(await confirmAction({ title: 'Svuotare il post?', text: `Svuotare ${what}? Non si può annullare.`, label: 'Svuota' }))) return $('simple-clear').focus();
+  simpleText.value = '';
+  mediaSelections.simple = null;
+  $('simple-file').value = '';
+  updateMedia('simple');
+  simpleMessage('');
+  renderSimple();
+  simpleText.focus();
+});
 simpleText.addEventListener('input', () => { simpleMessage(''); renderSimple(); });
 $('simple-ai').addEventListener('click', async event => {
   const prompt = $('simple-prompt').value.trim();
@@ -909,17 +997,25 @@ $('simple-ai').addEventListener('click', async event => {
     simpleMessage('Prima configura il servizio AI: scegli il servizio e inserisci la chiave.', true);
     return openAiDialog();
   }
-  if (simpleText.value.trim() && !window.confirm(t('Sostituire il testo attuale con quello scritto dall’AI?'))) return;
   const button = event.currentTarget;
+  if (simpleText.value.trim() && !(await confirmAction({ title: 'Sostituire il testo?', text: 'Sostituire il testo attuale con quello scritto dall’AI?', label: 'Sostituisci', danger: false }))) return button.focus();
   button.disabled = true;
   simpleMessage('L’AI sta scrivendo…');
+  let stopped = false;
   try {
-    const { text } = await api('compose', { channel: selectedSocial(), prompt, web: $('simple-web').checked && !$('simple-web').disabled, language: language() });
+    const request = { channel: selectedSocial(), prompt, web: $('simple-web').checked && !$('simple-web').disabled, language: language() };
+    const { text } = await withProgress($('simple-progress'), signal => api('compose', request, signal));
     simpleText.value = text;
     renderSimple();
     simpleMessage('Testo scritto dall’AI. Controllalo e modificalo prima di pubblicare.');
-  } catch (error) { simpleMessage(error.message, true); }
-  finally { button.disabled = false; }
+  } catch (error) {
+    stopped = isCancelled(error);
+    if (stopped) simpleMessage('Richiesta annullata. Il testo non è cambiato.');
+    else simpleMessage(error.message, true);
+  } finally {
+    button.disabled = false;
+    if (stopped) button.focus();
+  }
 });
 simpleForm.addEventListener('change', event => { if (event.target.name === 'simple-channel') { simpleMessage(''); renderSimple(); changeChannel('simple'); } });
 try {
@@ -936,13 +1032,17 @@ updateMedia('simple');
 const viewToggle = $('view-toggle');
 function setView(view, remember = true) {
   document.body.dataset.view = view;
-  $('view-name').textContent = view === 'simple' ? 'avanzata' : 'semplice';
-  viewToggle.setAttribute('aria-label', view === 'simple' ? 'Passa alla modalità avanzata' : 'Passa alla modalità semplice');
+  for (const choice of viewToggle.querySelectorAll('button')) choice.setAttribute('aria-pressed', String(choice.dataset.view === view));
   if (remember) { try { localStorage.setItem('studio-view', view); } catch { /* not remembered */ } }
   syncBar();
   syncScroll();
 }
-viewToggle.addEventListener('click', () => { setView(document.body.dataset.view === 'simple' ? 'advanced' : 'simple'); window.scrollTo(0, 0); });
+viewToggle.addEventListener('click', event => {
+  const choice = event.target.closest('button[data-view]');
+  if (!choice || choice.dataset.view === document.body.dataset.view) return;
+  setView(choice.dataset.view);
+  window.scrollTo(0, 0);
+});
 let storedView = null;
 try { storedView = localStorage.getItem('studio-view'); } catch { /* default view */ }
 setView(storedView === 'advanced' ? 'advanced' : 'simple', false);
@@ -958,5 +1058,5 @@ const connection = new URLSearchParams(window.location.search).get('linkedin');
 const connectionMessages = { connected: 'Profilo LinkedIn collegato.', cancelled: 'Collegamento annullato.', failed: 'Collegamento non riuscito. Verifica credenziali, permessi e URL di callback.', state: 'Sessione di collegamento scaduta. Riparti dal pulsante Collega.' };
 if (connection && Object.hasOwn(connectionMessages, connection)) {
   message(connectionMessages[connection], connection !== 'connected');
-  window.history.replaceState(null, '', '/#account');
+  window.history.replaceState(null, '', '/#collegamenti');
 }

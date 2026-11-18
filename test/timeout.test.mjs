@@ -47,7 +47,7 @@ test('A network failure logs the real cause without the key and keeps the generi
   const { logged } = await observe(async () => {
     thrown = await create({}, async () => { throw failure; }).generate(brief).catch(error => error);
   });
-  assert.match(thrown.message, /non ha risposto\. Verifica connessione ed endpoint\./);
+  assert.match(thrown.message, /non ha risposto\. Controlla la connessione a internet e l’indirizzo del servizio/);
   assert.equal(logged.length, 1);
   assert.match(logged[0], /llm\.example\.com/);
   assert.match(logged[0], /ENOTFOUND/);
@@ -62,6 +62,6 @@ test('A timeout says so and points to the wait setting', async () => {
     thrown = await create({}, async () => { throw timeoutError; }).listModels('compatible').catch(error => error);
   });
   assert.match(thrown.message, /entro il tempo di attesa impostato/);
-  assert.match(thrown.message, /Configura i provider AI/);
+  assert.match(thrown.message, /Impostazioni AI/);
   assert.match(logged[0], /TimeoutError/);
 });

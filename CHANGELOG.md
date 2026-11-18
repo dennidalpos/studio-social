@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- AI wait: a progress row with elapsed seconds and **Annulla** while the AI writes (simple request, **Genera una bozza**, **Migliora i campi con l’AI**). Cancelling aborts the request (the server stops the AI call and saves nothing) and leaves the fields as they were; after 30 s a hint points to the wait-time setting.
+- In-page confirmation dialog for deleting posts, **Svuota i post di prova** (it names how many posts go), **Svuota** in the simple view (text and/or attachment) and replacing text with the AI's. **Annulla le modifiche dell’AI** restores the previous values after **Migliora i campi con l’AI**.
+- Glossary of UI terms (servizio AI, chiave, indirizzo, allegato) in `PRODUCT.md`.
 - Set up the AI from the simple view: **Configura l’AI** opens a dialog to choose the AI service, save its key and model (with the model list and the wait time) without going to the advanced view. A line under the AI button shows the service in use and whether it is ready; **Scrivi con l’AI** opens the dialog instead of failing when the service is not set up.
 - Interface language: Italian and English, with an IT/EN selector (first visit follows the browser language). Generated posts follow the language chosen for the plan or draft.
 - `npm run browser`: optional separate Electron window with a persistent profile in `.data/browser`, a Socials menu, https-only navigation and denied permission prompts. The sign-in stays the person's own action.
@@ -25,6 +28,11 @@
 - The top bar marked both Piano and Post when they sit side by side; now only one place is marked (the one chosen from the menu, otherwise Piano).
 
 ### Changed
+- Simple view: **Copia e apri** is the only solid button; **Scrivi con l’AI** is secondary and **Abilita web** sits under the AI field.
+- The Account section is split into **Collegamenti** (social accounts) and **Impostazioni AI** (service, key, model, wait time; same dialog as the simple view). The Prova / Pubblicazione choice moved to a dialog opened from the mode pill. The menu is Piano · Post · Collegamenti · Impostazioni AI.
+- Errors and system texts say what happened and what to do (no bare "non valido", "non riuscita" or "errore 401"); "Session expired." is translated; "provider", "URL" and "endpoint" became "servizio AI" and "indirizzo".
+- Phone layout at 375 px: wider language select, 2x2 channel grid, smaller title without a forced break, page notice no longer sticky, no back-to-top button (the brand link goes to the top), and a **Semplice | Avanzata** segmented view control (the brand name hides below 480 px).
+- `PRODUCT.md` follows the current Impeccable schema (no Register section) and reflects the mode names and the simple-view AI.
 - Plain names for the two modes, in Italian and English: **Prova** / Practice (nothing is published) and **Pubblicazione** / Publishing (real accounts). The top-bar badge reads "Prova · non pubblica nulla" or "Pubblicazione attiva"; the setting is "Come vuoi usare Studio Social?" with "Salva scelta". "Ambiente", "Modalità demo/reale" and "pubblica davvero" are gone; "modalità" now only means the simple/advanced view.
 - Dark theme: neutral warm charcoal surfaces with green kept for buttons, links and accents (button text colour and hover are now tokens).
 - "Modalità prova" is now "Demo · invii simulati" (and "Reale · pubblica davvero"); the mode pill links to the setting. The plan's publishing option is called "Pubblicazione" and the environment setting "Ambiente".

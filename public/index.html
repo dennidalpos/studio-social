@@ -15,21 +15,24 @@
 </head>
 <body data-view="simple">
   <header class="bar">
-    <a class="brand" href="/" id="home" aria-label="Studio Social, torna all’inizio"><span class="monogram" aria-hidden="true">S</span> Studio Social</a>
-    <nav class="advanced-only" aria-label="Navigazione"><a href="#piano">Piano</a><a href="#post">Post</a><a href="#account">Account</a></nav>
+    <a class="brand" href="/" id="home" aria-label="Studio Social, torna all’inizio"><span class="monogram" aria-hidden="true">S</span><span class="brand-name">Studio Social</span></a>
+    <nav class="advanced-only" aria-label="Navigazione"><a href="#piano">Piano</a><a href="#post">Post</a><a href="#collegamenti">Collegamenti</a><a href="#impostazioni-ai">Impostazioni AI</a></nav>
     <div class="bar-tools">
       <select id="language" class="lang-select" aria-label="Lingua"><option value="it" data-no-i18n>IT</option><option value="en" data-no-i18n>EN</option></select>
-      <a class="pill mode-pill advanced-only" id="environment" href="#account">Caricamento</a>
-      <button type="button" class="secondary small" id="view-toggle"><span class="long">Modalità </span><span class="short">Vista </span><span id="view-name">avanzata</span></button>
+      <button type="button" class="pill mode-pill advanced-only" id="environment" aria-haspopup="dialog">Caricamento</button>
+      <div class="segmented" role="group" aria-label="Vista" id="view-toggle">
+        <button type="button" class="secondary small" data-view="simple" aria-pressed="true">Semplice</button>
+        <button type="button" class="secondary small" data-view="advanced" aria-pressed="false">Avanzata</button>
+      </div>
     </div>
   </header>
   <main>
     <section class="intro simple-only" aria-labelledby="simple-title">
-      <div><h1 id="simple-title">Scrivi, controlla<br>e pubblica<span>.</span></h1>
+      <div><h1 id="simple-title">Scrivi, controlla <br class="wide-break">e pubblica<span>.</span></h1>
       <p>Nessun account da collegare: scrivi il post, guarda l’anteprima e aprilo sul social già compilato, con il tuo login di sempre.</p></div>
     </section>
     <section class="intro advanced-only" aria-labelledby="title">
-      <div><h1 id="title">Calendario<br>editoriale<span>.</span></h1>
+      <div><h1 id="title">Calendario <br class="wide-break">editoriale<span>.</span></h1>
       <p>Scrivi, programma e pubblica su LinkedIn, Facebook e Instagram. Prepara i post per TikTok.</p></div>
       <div class="metrics" aria-label="Riepilogo">
         <div><strong id="draft-count">0</strong><span>Bozze</span></div>
@@ -49,11 +52,12 @@
             <label><input type="radio" name="simple-channel" value="tiktok"><span>TikTok</span></label>
           </div></fieldset>
           <label>Chiedi all’AI<textarea id="simple-prompt" rows="3" maxlength="1500" placeholder="Es. un post per annunciare il nuovo corso di fotografia, tono amichevole" aria-describedby="simple-ai-hint"></textarea></label>
+          <label class="check"><input type="checkbox" id="simple-web"> Abilita web</label>
           <div class="actions">
-            <button type="button" id="simple-ai">Scrivi con l’AI</button>
-            <label class="check"><input type="checkbox" id="simple-web"> Abilita web</label>
+            <button type="button" class="secondary" id="simple-ai">Scrivi con l’AI</button>
             <button class="secondary small" type="button" id="simple-ai-setup" aria-haspopup="dialog">Configura l’AI</button>
           </div>
+          <div id="simple-progress" class="progress" hidden></div>
           <small id="simple-ai-status" aria-live="polite"></small>
           <small id="simple-web-hint" aria-live="polite"></small>
           <small id="simple-ai-hint">L’AI scrive il post nei limiti del social scelto. Con «Abilita web» legge i link che inserisci nella richiesta.</small>
@@ -91,7 +95,7 @@
         <div class="section-heading"><h2 id="plan-heading">Piano editoriale</h2><span class="pill" id="plan-state">In pausa</span></div>
         <form id="plan" autocomplete="off">
           <label>Canale<select name="channel"><option value="linkedin">LinkedIn · profilo personale</option><option value="facebook">Facebook · Pagina</option><option value="instagram">Instagram · professionale</option><option value="tiktok">TikTok · esportazione</option></select></label>
-          <label>Provider AI<select name="provider" aria-describedby="provider-model"></select></label>
+          <label>Servizio AI<select name="provider" aria-describedby="provider-model"></select></label>
           <small id="provider-model" aria-live="polite" hidden></small>
           <label>Temi<input name="topic" maxlength="350" placeholder="Es. innovazione e gestione dei progetti"></label>
           <div class="row">
@@ -99,7 +103,7 @@
             <label>Tono<input name="tone" maxlength="150" placeholder="Es. professionale"></label>
           </div>
           <label>Materiale di riferimento<textarea name="facts" rows="3" maxlength="4500" placeholder="Note, esempi ed esperienze da cui partire"></textarea></label>
-          <div class="actions"><button class="secondary" type="button" id="improve">Migliora i campi con l’AI</button></div>
+          <div class="actions"><button class="secondary" type="button" id="improve">Migliora i campi con l’AI</button><button class="secondary" type="button" id="improve-undo" hidden>Annulla le modifiche dell’AI</button></div>
           <label class="check"><input type="checkbox" name="web" id="plan-web" aria-describedby="plan-web-hint"> Abilita web: l’AI legge i link inseriti e cerca fonti</label>
           <small id="plan-web-hint" aria-live="polite"></small>
           <div class="media-field">
@@ -122,6 +126,7 @@
           <label>Pubblicazione<select name="mode"><option value="draft">Crea bozze da rivedere</option><option value="auto">Crea e pubblica automaticamente</option></select></label>
           <label class="check"><input type="checkbox" name="enabled"> Attiva il piano ricorrente</label>
           <div class="actions"><button type="submit">Salva piano</button><button class="secondary" type="button" id="generate">Genera una bozza</button></div>
+          <div id="plan-progress" class="progress" hidden></div>
         </form>
       </section>
       <section class="card" id="post" aria-labelledby="posts-heading">
@@ -130,14 +135,9 @@
         <div id="posts"></div>
       </section>
     </div>
-    <section class="card advanced-only" id="account" aria-labelledby="account-heading">
-      <div class="section-heading"><h2 id="account-heading">Account</h2></div>
-      <form id="studio-mode" class="mode-form">
-        <label>Come vuoi usare Studio Social?<select name="mode" aria-describedby="mode-help"><option value="demo">Prova: nulla viene pubblicato</option><option value="live">Pubblicazione: sui tuoi account</option></select></label>
-        <button type="submit" class="secondary small" disabled>Salva scelta</button>
-      </form>
-      <p class="mode-help" id="mode-help"><strong>Prova</strong>: puoi esercitarti, nulla arriva ai social. <strong>Pubblicazione</strong>: i post escono sui tuoi account.</p>
-      <p id="config-notice" role="status" hidden></p>
+    <section class="card advanced-only" id="collegamenti" aria-labelledby="links-heading">
+      <div class="section-heading"><h2 id="links-heading">Collegamenti</h2></div>
+      <p class="mode-help">Collega i profili su cui vuoi pubblicare da Studio Social. In Prova nulla viene pubblicato: cambia modalità dal pulsante in alto.</p>
       <div class="accounts">
         <article>
           <div class="channel linkedin" aria-hidden="true">in</div><div><h3>LinkedIn</h3><p id="linkedin-name">Profilo personale</p></div><button class="secondary small" type="button" id="linkedin-button">Collega</button>
@@ -164,7 +164,7 @@
                 <div><button type="submit" class="secondary small">Salva certificato</button></div>
               </form>
             </details>
-            <p>Scegli «Pubblicazione» qui sopra e premi <strong>Collega</strong>. Controlla che compaia il tuo profilo. Per il video, verifica anche l’accesso alle API LinkedIn <strong>Videos</strong> e <strong>Posts</strong>. Se il token scade, collega di nuovo il profilo.</p>
+            <p>Scegli «Pubblicazione» dal pulsante di modalità in alto e premi <strong>Collega</strong>. Controlla che compaia il tuo profilo. Per il video, verifica anche l’accesso alle API LinkedIn <strong>Videos</strong> e <strong>Posts</strong>. Se il token scade, collega di nuovo il profilo.</p>
             <p><a href="https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow" target="_blank" rel="noopener noreferrer">Guida ufficiale OAuth di LinkedIn</a></p>
           </details>
         </article>
@@ -178,7 +178,7 @@
               <li>Con il token utente, esegui <code>GET /me/accounts?fields=id,name,access_token,tasks</code>. Dalla riga della Pagina copia <code>id</code> e <code>access_token</code> nei campi qui sotto.</li>
             </ol>
             <form data-configuration="facebook"></form>
-            <p>Scegli «Pubblicazione» qui sopra e premi <strong>Collega</strong>. Verifica il nome della Pagina. Se la Pagina manca da <code>/me/accounts</code>, controlla il ruolo sulla Pagina e che l’app Meta abbia accesso ai permessi richiesti.</p>
+            <p>Scegli «Pubblicazione» dal pulsante di modalità in alto e premi <strong>Collega</strong>. Verifica il nome della Pagina. Se la Pagina manca da <code>/me/accounts</code>, controlla il ruolo sulla Pagina e che l’app Meta abbia accesso ai permessi richiesti.</p>
             <p><a href="https://developers.facebook.com/docs/graph-api/reference/page/feed/" target="_blank" rel="noopener noreferrer">Guida ufficiale al feed della Pagina</a></p>
           </details>
         </article>
@@ -193,7 +193,7 @@
             </ol>
             <form data-configuration="instagram"></form>
             <p><strong>Reel:</strong> carica un file locale. <strong>Foto JPG:</strong> indica una cartella locale già servita dal tuo hosting e il corrispondente URL HTTPS pubblico. Meta usa quell’URL per scaricare la foto.</p>
-            <p>Scegli «Pubblicazione» qui sopra e premi <strong>Collega</strong>. Verifica il nome utente Instagram. Se il profilo non appare, controlla il collegamento alla Pagina e i permessi del token.</p>
+            <p>Scegli «Pubblicazione» dal pulsante di modalità in alto e premi <strong>Collega</strong>. Verifica il nome utente Instagram. Se il profilo non appare, controlla il collegamento alla Pagina e i permessi del token.</p>
             <p><a href="https://developers.facebook.com/documentation/instagram-platform/content-publishing" target="_blank" rel="noopener noreferrer">Guida ufficiale alla pubblicazione Instagram</a></p>
           </details>
         </article>
@@ -211,16 +211,11 @@
           </details>
         </article>
       </div>
-      <details id="ai-settings" class="provider-settings">
-        <summary>Configura i provider AI</summary>
-        <p>Salva la chiave API del provider scelto e selezionalo nel piano editoriale. La chiave resta nella copia locale di Studio Social.</p>
-        <details name="provider"><summary>OpenAI</summary><form data-configuration="openai"></form></details>
-        <details name="provider"><summary>Claude</summary><form data-configuration="claude"></form></details>
-        <details name="provider"><summary>QwenCloud</summary><p>Il collegamento predefinito usa Singapore. Usa una chiave della stessa regione.</p><form data-configuration="qwen"></form></details>
-        <details name="provider"><summary>Google Gemini e Antigravity</summary><form data-configuration="google"></form></details>
-        <details name="provider"><summary>API compatibile con Chat Completions</summary><form data-configuration="compatible"></form></details>
-        <details name="provider"><summary>Tempo di attesa dei modelli</summary><p>Per i modelli lenti: quanti minuti attendere la risposta prima di rinunciare (da 0,1 a 60). Vuoto: 1 minuto per i testi, 15 secondi per l’elenco dei modelli.</p><form data-configuration="wait"></form></details>
-      </details>
+      </section>
+    <section class="card advanced-only" id="impostazioni-ai" aria-labelledby="ai-heading">
+      <div class="section-heading"><h2 id="ai-heading">Impostazioni AI</h2><button class="secondary small" type="button" id="advanced-ai-setup" aria-haspopup="dialog">Configura l’AI</button></div>
+      <p>Scegli il servizio AI, salva la chiave e il modello e decidi quanto attendere la risposta. Sono le stesse impostazioni della vista semplice.</p>
+      <p id="ai-summary" aria-live="polite"></p>
     </section>
   </main>
   <button type="button" class="to-top" id="to-top" aria-label="Torna su" hidden>
@@ -241,6 +236,23 @@
       <div class="actions"><button type="submit">Salva bozza</button><button class="secondary" type="button" id="preview-editor" aria-haspopup="dialog">Anteprima</button><button class="secondary" type="button" id="queue">Programma</button><button class="secondary" type="button" id="send">Pubblica ora</button><button class="secondary danger" type="button" id="delete-post" hidden>Elimina</button></div>
     </form>
   </dialog>
+  <dialog id="mode-dialog" aria-labelledby="mode-dialog-title">
+    <div class="section-heading"><h2 id="mode-dialog-title">Modalità</h2><button type="button" class="secondary small" id="close-mode">Chiudi</button></div>
+    <form id="studio-mode" class="mode-form">
+      <label>Come vuoi usare Studio Social?<select name="mode" aria-describedby="mode-help"><option value="demo">Prova: nulla viene pubblicato</option><option value="live">Pubblicazione: sui tuoi account</option></select></label>
+      <button type="submit" class="secondary small" disabled>Salva scelta</button>
+    </form>
+    <p class="mode-help" id="mode-help"><strong>Prova</strong>: puoi esercitarti, nulla arriva ai social. <strong>Pubblicazione</strong>: i post escono sui tuoi account.</p>
+    <p id="config-notice" role="status" hidden></p>
+  </dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <form method="dialog">
+      <h2 id="confirm-title">Confermi?</h2>
+      <p id="confirm-text"></p>
+      <div class="actions"><button class="secondary" value="cancel" id="confirm-cancel" autofocus>Annulla</button><button value="ok" id="confirm-ok" class="danger">Elimina</button></div>
+    </form>
+  </dialog>
+  <template id="progress-template"><div class="progress-row"><p class="progress-line"><span class="progress-text">L’AI sta lavorando…</span> <span class="progress-time" aria-hidden="true" data-no-i18n>0 s</span></p><button type="button" class="secondary small progress-cancel">Annulla</button><small class="progress-hint" hidden>Ci vuole più del solito. Se il modello è lento, aumenta il tempo di attesa in «Configura l’AI».</small></div></template>
   <dialog id="ai-dialog" aria-labelledby="ai-dialog-title">
     <div class="section-heading"><h2 id="ai-dialog-title">Configura l’AI</h2><button type="button" class="secondary small" id="close-ai">Chiudi</button></div>
     <p>Scegli il servizio AI e inserisci la tua chiave. La chiave resta nella copia locale di Studio Social.</p>

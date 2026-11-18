@@ -40,8 +40,8 @@ nav { display: flex; gap: 1.25rem; font-size: .9rem; }
 nav a { text-decoration: none; }
 nav a:hover { text-decoration: underline; }
 nav a[aria-current] { color: var(--green); font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: .4em; }
-a.pill { text-decoration: none; }
-a.pill:hover { filter: brightness(.96); }
+button.mode-pill { border: 1px solid transparent; font-weight: 400; cursor: pointer; font-size: .79rem; padding: .26rem .58rem; }
+button.mode-pill:hover:not(:disabled) { background: var(--tint); border-color: var(--control); color: var(--green); }
 .mode-pill.live { background: var(--button); color: var(--on-button); font-weight: 650; }
 .mode-help { font-size: .85rem; margin: 0 0 1rem; max-width: 62ch; }
 .to-top { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 15; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%; box-shadow: 0 2px 10px #0003; }
@@ -49,7 +49,7 @@ a.pill:hover { filter: brightness(.96); }
 .pill { display: inline-block; padding: .26rem .58rem; font-size: .79rem; border-radius: 99px; color: var(--green); background: var(--tint); white-space: nowrap; }
 main { width: min(90%, 1180px); margin: 0 auto 4rem; }
 .intro { display: flex; padding: 2.8rem 0 1.7rem; justify-content: space-between; align-items: end; gap: 1.5rem; }
-h1 { font: 500 clamp(2.9rem, 7.2vw, 6rem)/.91 'Instrument Serif', Georgia, serif; margin: 0; letter-spacing: -.04em; }
+h1 { font: 500 clamp(2.3rem, 7.2vw, 6rem)/.95 'Instrument Serif', Georgia, serif; margin: 0; letter-spacing: -.04em; }
 h1 span { color: var(--accent); }
 p { color: var(--muted); }
 .intro p { margin: 1.15rem 0 .2rem; }
@@ -94,7 +94,7 @@ legend { margin-bottom: .3rem; padding: 0; }
 #notice { position: sticky; top: calc(var(--bar-h, 4.5rem) + .5rem); z-index: 10; border: 1px solid var(--line); }
 #notice.error { border-color: var(--error); }
 #notice.error, #editor-notice.error { background: var(--error-bg); }
-#account { margin-top: 1rem; }
+#collegamenti, #impostazioni-ai { margin-top: 1rem; }
 .accounts { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .accounts article { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .65rem; align-items: center; border-top: 1px solid var(--line); padding-top: .75rem; }
 .accounts p { margin: .15rem 0 0; font-size: .85rem; overflow-wrap: anywhere; }
@@ -178,13 +178,40 @@ body[data-view="simple"] .advanced-only, body[data-view="advanced"] .simple-only
 .simple-steps li { margin: .4rem 0; color: var(--muted); }
 #simple-notice { background: var(--tint); padding: .65rem .8rem; border-radius: 6px; margin: 0; }
 #simple-notice.error { background: var(--error-bg); }
-#view-toggle .short { display: none; }
-@media (max-width: 570px) { #view-toggle .short { display: inline; } .bar-tools { margin-left: auto; } .bar .long { display: none; } }
+/* View: segmented control (Semplice | Avanzata). */
+.segmented { display: inline-flex; border: 1px solid var(--control); border-radius: 8px; overflow: hidden; }
+.segmented button { border: 0; border-radius: 0; margin: 0; min-height: 2.75rem; }
+.segmented button + button { border-left: 1px solid var(--control); }
+.segmented button[aria-pressed="true"] { background: var(--button); color: var(--on-button); }
+.segmented button[aria-pressed="true"]:hover:not(:disabled) { background: var(--button-hover); }
+@media (max-width: 570px) { .bar-tools { margin-left: auto; } .wide-break { display: none; } }
+/* AI wait: elapsed time, cancel and the pointer to the wait-time setting. */
+.progress { margin: 0; }
+.progress-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; padding: .65rem .8rem; border: 1px solid var(--line); border-radius: 6px; background: var(--tint); }
+.progress-line { margin: 0; color: var(--ink); font-size: .9rem; }
+.progress-time { font-variant-numeric: tabular-nums; color: var(--muted); }
+.progress-hint { flex-basis: 100%; color: var(--muted); }
+#confirm-dialog { width: min(92vw, 26rem); }
+#confirm-dialog form { gap: .6rem; }
+#confirm-dialog p { margin: 0 0 .4rem; color: var(--ink); }
+#mode-dialog .mode-form { margin-bottom: .6rem; }
 input:not([type=checkbox], [type=radio]), select, textarea { font-weight: 400; }
 
 .lang-select { font: inherit; font-size: .84rem; padding: .42rem .5rem; min-height: 2.75rem; border: 1px solid var(--line, currentColor); border-radius: 10px; background: transparent; color: inherit; }
-@media (max-width: 570px) { .bar { gap: .5rem; } .bar-tools { gap: .4rem; } .lang-select { width: 3.3rem; padding-inline: .3rem; } }
+@media (max-width: 570px) {
+  .bar { gap: .5rem; }
+  .bar-tools { gap: .4rem; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+  .lang-select { width: 4.4rem; padding-inline: .5rem; }
+  .segmented button { padding-inline: .7rem; }
+  /* The notice scrolls with the page here (it would cover the form), and the brand link already goes back to the top. */
+  #notice { position: static; }
+  .to-top { display: none; }
+  .channel-choice .days { display: grid; grid-template-columns: 1fr 1fr; }
+  .channel-choice .days label { display: block; }
+  .channel-choice .days span { width: 100%; }
+}
 
 #ai-dialog > label { display: grid; gap: .3rem; }
 #ai-service { margin-bottom: .9rem; }
 #ai-form { margin-bottom: .6rem; }
+@media (max-width: 480px) { .brand-name { display: none; } }

@@ -55,15 +55,15 @@ test('asks for the key or the URL before calling out', async () => {
   const noKey = generation({}, ok({ data: [] }));
   await assert.rejects(() => noKey.listModels('openai'), /chiave API/);
   const noBase = generation({ COMPAT_API_KEY: 'k' }, ok({ data: [] }));
-  await assert.rejects(() => noBase.listModels('compatible'), /URL base/);
+  await assert.rejects(() => noBase.listModels('compatible'), /indirizzo base/);
   const unsafe = generation({ COMPAT_API_KEY: 'k', COMPAT_BASE_URL: 'http://llm.example.com/v1' }, ok({ data: [] }));
-  await assert.rejects(() => unsafe.listModels('compatible'), /URL base/);
+  await assert.rejects(() => unsafe.listModels('compatible'), /indirizzo base/);
   assert.equal(noKey.calls.length + noBase.calls.length + unsafe.calls.length, 0);
 });
 
 test('reports provider errors, network failures and empty lists', async () => {
-  await assert.rejects(() => generation({ OPENAI_API_KEY: 'k' }, failure(401)).listModels('openai'), /errore 401/);
+  await assert.rejects(() => generation({ OPENAI_API_KEY: 'k' }, failure(401)).listModels('openai'), /codice 401/);
   await assert.rejects(() => generation({ OPENAI_API_KEY: 'k' }, new Error('offline')).listModels('openai'), /non ha risposto/);
   await assert.rejects(() => generation({ OPENAI_API_KEY: 'k' }, ok({ data: [{ id: 'whisper-1' }] })).listModels('openai'), /non ha elencato/);
-  await assert.rejects(() => generation({}, ok({})).listModels('unknown'), /servizio valido/);
+  await assert.rejects(() => generation({}, ok({})).listModels('unknown'), /servizi AI dell’elenco/);
 });

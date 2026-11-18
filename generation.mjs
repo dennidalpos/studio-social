@@ -50,7 +50,7 @@ const notForText = /embed|whisper|tts|dall-e|moderation|transcribe|realtime|audi
 function compatibleUrl(value) {
   const url = new URL(value);
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
-    throw new Error('Usa un URL base HTTPS senza credenziali, query o frammento.');
+    throw new Error('Usa un indirizzo base che inizi con https:// e non contenga credenziali, query o frammento.');
   }
   const path = url.pathname.replace(/\/+$/, '');
   url.pathname = path.endsWith('/chat/completions') ? path : `${path}/chat/completions`;
@@ -73,8 +73,8 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     let host = 'unknown host';
     try { host = new URL(url).host; } catch { /* keep the placeholder */ }
     console.error(`[AI] ${config.label}: ${action} on ${host} failed: ${causeOf(error)}`);
-    if (error?.name === 'TimeoutError') return new ErrorType(`${config.label} non ha risposto entro il tempo di attesa impostato. Aumenta il tempo di attesa in Account → Configura i provider AI.`);
-    return new ErrorType(`${config.label} non ha risposto. Verifica connessione ed endpoint.`);
+    if (error?.name === 'TimeoutError') return new ErrorType(`${config.label} non ha risposto entro il tempo di attesa impostato. Aumenta il tempo di attesa in Impostazioni AI.`);
+    return new ErrorType(`${config.label} non ha risposto. Controlla la connessione a internet e l’indirizzo del servizio, poi riprova.`);
   }
   const googleKey = value('GEMINI_API_KEY');
   const definitions = {
@@ -95,11 +95,11 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     if (config.qwenHost && config.kind === 'chat') config.web = true;
   }
   const defaultProvider = value('LLM_PROVIDER', 'openai');
-  if (!Object.hasOwn(definitions, defaultProvider)) throw new Error('LLM_PROVIDER non valido nel file .env.');
+  if (!Object.hasOwn(definitions, defaultProvider)) throw new Error('LLM_PROVIDER nel file .env non è un servizio AI conosciuto. Usa openai, claude, qwen, gemini, antigravity o compatible.');
 
   function providerId(id) {
     const selected = id === undefined ? defaultProvider : id;
-    if (typeof selected !== 'string' || !Object.hasOwn(definitions, selected)) throw new ErrorType('Seleziona un provider AI valido.');
+    if (typeof selected !== 'string' || !Object.hasOwn(definitions, selected)) throw new ErrorType('Scegli uno dei servizi AI dell’elenco.');
     return selected;
   }
 
@@ -107,8 +107,8 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     const selected = providerId(id);
     const config = definitions[selected];
     if (!demo && requireConfig && (!config.key || !config.model || !config.endpoint)) {
-      const suffix = config.endpointProblem ? ' Controlla che l’URL base sia HTTPS e privo di credenziali, query e frammenti.' : '';
-      throw new ErrorType(`Configura ${config.config} per ${config.label} in Account → Configura i provider AI.${suffix}`);
+      const suffix = config.endpointProblem ? ' Controlla che l’indirizzo base inizi con https:// e non contenga credenziali, query o frammenti.' : '';
+      throw new ErrorType(`Configura ${config.config} per ${config.label} in Impostazioni AI.${suffix}`);
     }
     return selected;
   }
@@ -116,13 +116,13 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
   const options = Object.entries(definitions).map(([id, config]) => ({ id, label: config.label, model: config.model, ready: demo || Boolean(config.key && config.model && config.endpoint), web: Boolean(config.web) }));
 
   async function failed(config, response) {
-    const hints = { 400: 'Controlla il modello e i parametri.', 401: 'Controlla la chiave API e la regione associata.', 403: 'Controlla i permessi della chiave e l’accesso al modello.', 404: 'Controlla endpoint e identificativo del modello.', 429: 'Controlla quota e limiti del provider.' };
+    const hints = { 400: 'Controlla il nome del modello e le impostazioni.', 401: 'La chiave non è valida o appartiene a un’altra regione: controllala in Impostazioni AI.', 403: 'La chiave non ha i permessi per questo modello: controllali sul sito del servizio.', 404: 'Controlla l’indirizzo del servizio e il nome del modello.', 429: 'Hai raggiunto il limite o la quota del servizio: attendi un po’ o controlla il piano.' };
     await response.body?.cancel().catch(() => {});
-    throw new ErrorType(`${config.label} ha risposto con errore ${response.status}. ${hints[response.status] || 'Riprova più tardi.'}`);
+    throw new ErrorType(`${config.label} ha rifiutato la richiesta (codice ${response.status}). ${hints[response.status] || 'Riprova tra poco.'}`);
   }
 
   function modelsUrl(config) {
-    if (!config.endpoint) throw new ErrorType('Controlla che l’URL base sia HTTPS e privo di credenziali, query e frammenti.');
+    if (!config.endpoint) throw new ErrorType('Manca l’indirizzo base del servizio. Deve iniziare con https:// e non contenere credenziali, query o frammenti.');
     return config.endpoint.replace(/\/chat\/completions$/, '/models');
   }
 
@@ -136,7 +136,7 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
   };
 
   async function listModels(group) {
-    if (!Object.hasOwn(listings, group)) throw new ErrorType('Seleziona un servizio valido.');
+    if (!Object.hasOwn(listings, group)) throw new ErrorType('Scegli uno dei servizi AI dell’elenco.');
     const { service, url } = listings[group];
     const config = definitions[service];
     if (!config.key) throw new ErrorType(`Inserisci la chiave API per ${config.label}.`);
@@ -165,7 +165,7 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
   }
 
   // One call to a provider: returns the text of the answer. `web` turns on the provider's own web search.
-  async function run(selected, { system, input, web = false, action }) {
+  async function run(selected, { system, input, web = false, action, signal }) {
     const config = definitions[selected];
     if (web && !config.web) throw new ErrorType(`${config.label} non supporta la ricerca web.`);
     const messages = [{ role: 'system', content: system }, { role: 'user', content: input }];
@@ -187,8 +187,8 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     async function send(payload) {
       let response;
       try {
-        response = await fetcher(config.endpoint, { method: 'POST', headers, body: JSON.stringify(payload), redirect: 'error', signal: AbortSignal.timeout(wait) });
-      } catch (error) { throw unanswered(config, action, config.endpoint, error); }
+        response = await fetcher(config.endpoint, { method: 'POST', headers, body: JSON.stringify(payload), redirect: 'error', signal: signal ? AbortSignal.any([AbortSignal.timeout(wait), signal]) : AbortSignal.timeout(wait) });
+      } catch (error) { if (signal?.aborted) throw error; throw unanswered(config, action, config.endpoint, error); }
       if (!response.ok) await failed(config, response);
       return response.json().catch(() => null);
     }
@@ -222,39 +222,39 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     return new ErrorType(`${config.label} non ha restituito un post completo entro il limite di ${maximum} caratteri.`);
   }
 
-  async function generate({ provider, topic, audience, tone, facts, channel, language = 'it', recent = [], web = false }) {
+  async function generate({ provider, topic, audience, tone, facts, channel, language = 'it', recent = [], web = false, signal }) {
     const selected = validate(provider);
     const config = definitions[selected];
     const maximum = limit(channel);
     if (demo) return `${topic}\n\n${facts ? `${facts}\n\n` : ''}Quale aspetto vorresti approfondire?\n\n[Testo di esempio · ${config.label} simulato]`.slice(0, maximum);
     const links = web ? linksIn(topic, facts) : [];
     const input = JSON.stringify({ tema: topic, pubblico: audience, tono: tone, fatti: facts, canale: names[channel], postRecenti: recent, ...(links.length ? { link: links } : {}) });
-    const content = await run(selected, { system: withWeb(systems[language] ?? systems.it, language, web), input, web, action: 'generation' });
+    const content = await run(selected, { system: withWeb(systems[language] ?? systems.it, language, web), input, web, action: 'generation', signal });
     if (!content || content.length > maximum) throw tooLong(config, maximum);
     return content;
   }
 
   // Simple view: the user's own request becomes a post that fits the limit of the chosen social.
-  async function compose({ provider, prompt, channel, language = 'it', web = false }) {
+  async function compose({ provider, prompt, channel, language = 'it', web = false, signal }) {
     const selected = validate(provider);
     const config = definitions[selected];
     const maximum = limit(channel);
     if (demo) return `${prompt}\n\n[Testo di esempio · ${config.label} simulato]`.slice(0, maximum);
     const links = web ? linksIn(prompt) : [];
     const input = JSON.stringify({ richiesta: prompt, canale: names[channel], ...(links.length ? { link: links } : {}) });
-    const content = await run(selected, { system: withWeb(composeSystems[language] ?? composeSystems.it, language, web), input, web, action: 'post request' });
+    const content = await run(selected, { system: withWeb(composeSystems[language] ?? composeSystems.it, language, web), input, web, action: 'post request', signal });
     if (!content || content.length > maximum) throw tooLong(config, maximum);
     return content;
   }
 
   // Advanced view: turns generic words into complete topic, audience, tone and reference material.
-  async function improve({ provider, topic, audience, tone, facts, channel, language = 'it', web = false }) {
+  async function improve({ provider, topic, audience, tone, facts, channel, language = 'it', web = false, signal }) {
     const selected = validate(provider);
     const config = definitions[selected];
     if (demo) return { topic: topic || 'Tema di esempio', audience: audience || 'Pubblico di esempio', tone: tone || 'Professionale e concreto', facts: facts || 'Note di esempio' };
     const links = web ? linksIn(topic, facts) : [];
     const input = JSON.stringify({ canale: names[channel], topic, audience, tone, facts, ...(links.length ? { link: links } : {}) });
-    const text = await run(selected, { system: withWeb(improveSystems[language] ?? improveSystems.it, language, web), input, web, action: 'field improvement' });
+    const text = await run(selected, { system: withWeb(improveSystems[language] ?? improveSystems.it, language, web), input, web, action: 'field improvement', signal });
     let fields = null;
     try { fields = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch { /* handled below */ }
     const valid = fields && Object.entries(improveLimits).every(([name, maximum]) => typeof fields[name] === 'string' && fields[name].trim() && fields[name].trim().length <= maximum);
