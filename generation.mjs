@@ -10,8 +10,8 @@ const directEnding = {
 };
 // Added instead of the "write directly" sentence when web search is on.
 const webEnding = {
-  it: ' La ricerca web è attiva: leggi i link elencati in "link" e, se serve, cerca fonti affidabili. Usa solo informazioni trovate nelle pagine lette, non inventare e non citare fonti che non hai letto. Non inserire link nel testo a meno che il brief lo chieda.',
-  en: ' Web search is on: read the links listed in "link" and, if needed, look for reliable sources. Use only information found on the pages you read, do not invent anything and do not cite sources you did not read. Do not put links in the text unless the brief asks for it.',
+  it: ' La ricerca web è attiva: usa come fonte principale il testo in "contenutoLink" (descrizione e README già letti dal repository), leggi i link elencati in "link" e, se serve, cerca fonti affidabili. Usa solo informazioni trovate nelle pagine lette, non inventare e non citare fonti che non hai letto. Non inserire link nel testo a meno che il brief lo chieda.',
+  en: ' Web search is on: use the text in "contenutoLink" (repository description and README already read) as the main source, read the links listed in "link" and, if needed, look for reliable sources. Use only information found on the pages you read, do not invent anything and do not cite sources you did not read. Do not put links in the text unless the brief asks for it.',
 };
 const composeSystems = {
   it: 'Scrivi un singolo post social in italiano seguendo la richiesta dell’utente. Restituisci solo il testo pronto per la pubblicazione (massimo 1.800 caratteri), adattato al canale indicato. Non inventare statistiche, citazioni, link, promesse, risultati o esperienze personali. Scrivi direttamente, senza usare strumenti, file o ricerche.',
@@ -222,13 +222,35 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     return new ErrorType(`${config.label} non ha restituito un post completo entro il limite di ${maximum} caratteri.`);
   }
 
+  // The provider's own web search often cannot read a page, so a GitHub repository link is read here (fixed host, no redirects)
+  // and its description and README go to the model as text. Any failure just leaves the model with the link.
+  async function pagesIn(links) {
+    const pages = [];
+    for (const link of links) {
+      const match = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/i.exec(link);
+      if (!match) continue;
+      const [, owner, repo] = match;
+      const read = async (path, accept) => {
+        const response = await fetcher(`https://api.github.com/repos/${owner}/${repo}${path}`, { headers: { Accept: accept, 'User-Agent': 'studio-social' }, redirect: 'error', signal: AbortSignal.timeout(10_000) });
+        if (!response.ok) throw new Error(String(response.status));
+        return accept.includes('json') ? response.json() : response.text();
+      };
+      try {
+        const info = await read('', 'application/vnd.github+json');
+        const readme = await read('/readme', 'application/vnd.github.raw+json').catch(() => '');
+        pages.push({ link, nome: info.full_name, descrizione: info.description ?? '', linguaggio: info.language ?? '', argomenti: info.topics ?? [], readme: String(readme).slice(0, 6000) });
+      } catch { /* the model keeps the link only */ }
+    }
+    return pages.length ? { contenutoLink: pages } : {};
+  }
+
   async function generate({ provider, topic, audience, tone, facts, channel, language = 'it', recent = [], web = false, signal }) {
     const selected = validate(provider);
     const config = definitions[selected];
     const maximum = limit(channel);
     if (demo) return `${topic}\n\n${facts ? `${facts}\n\n` : ''}Quale aspetto vorresti approfondire?\n\n[Testo di esempio · ${config.label} simulato]`.slice(0, maximum);
     const links = web ? linksIn(topic, facts) : [];
-    const input = JSON.stringify({ tema: topic, pubblico: audience, tono: tone, fatti: facts, canale: names[channel], postRecenti: recent, ...(links.length ? { link: links } : {}) });
+    const input = JSON.stringify({ tema: topic, pubblico: audience, tono: tone, fatti: facts, canale: names[channel], postRecenti: recent, ...(links.length ? { link: links } : {}), ...await pagesIn(links) });
     const content = await run(selected, { system: withWeb(systems[language] ?? systems.it, language, web), input, web, action: 'generation', signal });
     if (!content || content.length > maximum) throw tooLong(config, maximum);
     return content;
@@ -241,7 +263,7 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     const maximum = limit(channel);
     if (demo) return `${prompt}\n\n[Testo di esempio · ${config.label} simulato]`.slice(0, maximum);
     const links = web ? linksIn(prompt) : [];
-    const input = JSON.stringify({ richiesta: prompt, canale: names[channel], ...(links.length ? { link: links } : {}) });
+    const input = JSON.stringify({ richiesta: prompt, canale: names[channel], ...(links.length ? { link: links } : {}), ...await pagesIn(links) });
     const content = await run(selected, { system: withWeb(composeSystems[language] ?? composeSystems.it, language, web), input, web, action: 'post request', signal });
     if (!content || content.length > maximum) throw tooLong(config, maximum);
     return content;
@@ -253,7 +275,7 @@ export function createGeneration(env, { demo, limit, ErrorType, fetcher }) {
     const config = definitions[selected];
     if (demo) return { topic: topic || 'Tema di esempio', audience: audience || 'Pubblico di esempio', tone: tone || 'Professionale e concreto', facts: facts || 'Note di esempio' };
     const links = web ? linksIn(topic, facts) : [];
-    const input = JSON.stringify({ canale: names[channel], topic, audience, tone, facts, ...(links.length ? { link: links } : {}) });
+    const input = JSON.stringify({ canale: names[channel], topic, audience, tone, facts, ...(links.length ? { link: links } : {}), ...await pagesIn(links) });
     const text = await run(selected, { system: withWeb(improveSystems[language] ?? improveSystems.it, language, web), input, web, action: 'field improvement', signal });
     let fields = null;
     try { fields = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch { /* handled below */ }

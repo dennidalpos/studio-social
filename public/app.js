@@ -1000,11 +1000,19 @@ $('simple-ai').addEventListener('click', async event => {
   }
   const button = event.currentTarget;
   if (simpleText.value.trim() && !(await confirmAction({ title: 'Sostituire il testo?', text: 'Sostituire il testo attuale con quello scritto dall’AI?', label: 'Sostituisci', danger: false }))) return button.focus();
+  // A link in the request only gets read when web search is on: turn it on instead of silently ignoring the link.
+  const webToggle = $('simple-web');
+  const hasLink = /https:\/\/\S+/i.test(prompt);
+  if (hasLink && !webToggle.disabled) webToggle.checked = true;
+  if (hasLink && webToggle.disabled) {
+    simpleMessage('La richiesta contiene un link, ma questo servizio AI non può leggere le pagine web. Scegli OpenAI, Claude o QwenCloud in «Configura l’AI».', true);
+    return;
+  }
   button.disabled = true;
   simpleMessage('L’AI sta scrivendo…');
   let stopped = false;
   try {
-    const request = { channel: selectedSocial(), prompt, web: $('simple-web').checked && !$('simple-web').disabled, language: language() };
+    const request = { channel: selectedSocial(), prompt, web: webToggle.checked && !webToggle.disabled, language: language() };
     const { text } = await withProgress($('simple-progress'), signal => api('compose', request, signal));
     simpleText.value = text;
     renderSimple();
@@ -1040,9 +1048,10 @@ function setView(view, remember = true) {
 }
 viewToggle.addEventListener('click', event => {
   const choice = event.target.closest('button[data-view]');
-  if (!choice || choice.dataset.view === document.body.dataset.view) return;
-  setView(choice.dataset.view);
-  window.scrollTo(0, 0);
+  if (!choice) return;
+  // Pressing the view already shown brings the person back to the top instead of doing nothing.
+  if (choice.dataset.view !== document.body.dataset.view) setView(choice.dataset.view);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 let storedView = null;
 try { storedView = localStorage.getItem('studio-view'); } catch { /* default view */ }

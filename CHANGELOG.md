@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- AI requests with a `github.com/owner/repo` link: the server reads the repository description, topics and README (fixed host, no redirects) and gives the text to the model, because the provider's own web search often does not read the page. Other links still rely on the provider's web search.
+- The simple view turns **Abilita web** on when the request has an https link, or says the AI service cannot read web pages.
 - AI wait: a progress row with elapsed seconds and **Annulla** while the AI writes (simple request, **Genera una bozza**, **Migliora i campi con l’AI**). Cancelling aborts the request (the server stops the AI call and saves nothing) and leaves the fields as they were; after 30 s a hint points to the wait-time setting.
 - In-page confirmation dialog for deleting posts, **Svuota i post di prova** (it names how many posts go), **Svuota** in the simple view (text and/or attachment) and replacing text with the AI's. **Annulla le modifiche dell’AI** restores the previous values after **Migliora i campi con l’AI**.
 - Glossary of UI terms (servizio AI, chiave, indirizzo, allegato) in `PRODUCT.md`.
@@ -24,6 +26,9 @@
 - Delete posts: **Elimina** on every card and in the editor (with a confirmation that says what happens; for published posts only the local copy goes, the post stays on the social), and **Svuota i post di prova** in demo mode. A deleted post of the recurring plan does not come back the same day.
 
 ### Fixed
+- The **Avanzata** button was clipped off the right edge of the header; the view buttons no longer shrink. Pressing the view already shown scrolls to the top.
+- Smaller page title and headings; Instrument Serif headings use the weight that is actually loaded (400) instead of a synthetic bold.
+- **Pubblica ora** and the automatic plan now ask with the in-page dialog instead of the browser's confirm.
 - The **Abilita web** checkboxes were disabled for an OpenAI-compatible service hosted by QwenCloud/DashScope. They are now available for those hosts (sent as `enable_search`), and the simple view says why the toggle is off when the plan's provider has no web search.
 - The top bar marked both Piano and Post when they sit side by side; now only one place is marked (the one chosen from the menu, otherwise Piano).
 
