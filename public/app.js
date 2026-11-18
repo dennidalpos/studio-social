@@ -476,12 +476,12 @@ function openEditor(post) {
   editor.showModal();
 }
 
-function setPost(trigger, action) {
+async function setPost(trigger, action) {
   if (!form.reportValidity()) return;
   const { content, channel, due } = Object.fromEntries(new FormData(form));
   if (!content.trim() && !mediaSelections.editor) return message('Aggiungi testo o un allegato.', true, $('editor-notice'));
   if (action === 'schedule' && !due) return message('Scegli data e ora per il post.', true, $('editor-notice'));
-  if (action === 'now' && !state.demo && !window.confirm(t(`Pubblicare questo post su ${channelLabels[editing.channel]}?`))) return;
+  if (action === 'now' && !state.demo && !(await confirmAction({ title: 'Pubblicare ora?', text: `Pubblicare questo post su ${channelLabels[editing.channel]}?`, label: 'Pubblica', danger: false }))) return;
   const postId = editing?.id;
   const mediaId = mediaSelections.editor?.id ?? null;
   void change(trigger, async () => {
@@ -500,11 +500,12 @@ function verify(post, found) {
   });
 }
 
-planForm.addEventListener('submit', event => {
+planForm.addEventListener('submit', async event => {
   event.preventDefault();
   const input = getPlanInput();
-  if (input.enabled && input.mode === 'auto' && !state?.demo && !window.confirm(t(`Attivare creazione e pubblicazione automatica su ${channelLabels[input.channel]}?`))) return;
-  void change(event.submitter, async () => { render(await api('plan', input)); clearImproveUndo(); message('Piano salvato.'); });
+  const submitter = event.submitter;
+  if (input.enabled && input.mode === 'auto' && !state?.demo && !(await confirmAction({ title: 'Attivare il piano automatico?', text: `Attivare creazione e pubblicazione automatica su ${channelLabels[input.channel]}?`, label: 'Attiva', danger: false }))) return;
+  void change(submitter,async () => { render(await api('plan', input)); clearImproveUndo(); message('Piano salvato.'); });
 });
 $('generate').addEventListener('click', event => {
   const input = getPlanInput();
