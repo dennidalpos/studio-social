@@ -1,0 +1,254 @@
+<#
+.SYNOPSIS
+  Installs and starts Studio Social.
+.DESCRIPTION
+  Checks Node.js 24+, installs runtime dependencies (dev tools are skipped), creates .env from
+  .env.example on first run (demo mode) and starts the server. If Studio Social instances are
+  already running, they are listed and a menu lets you stop them, open them or pick another port.
+  The server prints the login URL with the access key; the browser is opened on it automatically.
+.PARAMETER Port
+  Port to listen on. Overrides PORT from .env.
+.PARAMETER Live
+  Sets DEMO=false for this run (real generation and publishing; needs keys saved in the dashboard or .env).
+.PARAMETER NoBrowser
+  Do not open the browser.
+.PARAMETER WithDevTools
+  Also install the Playwright test tooling.
+.PARAMETER StopExisting
+  Stop every running instance without asking, then start.
+.PARAMETER NoMenu
+  Skip the start menu and start straight away.
+#>
+[CmdletBinding()]
+param(
+  [int]$Port,
+  [switch]$Live,
+  [switch]$NoBrowser,
+  [switch]$WithDevTools,
+  [switch]$StopExisting,
+  [switch]$NoMenu
+)
+
+$ErrorActionPreference = 'Stop'
+Set-Location -LiteralPath $PSScriptRoot
+$keyFile = Join-Path $PSScriptRoot '.data\access.key'
+
+# Listening TCP ports with their process id. netstat answers in about 0.1 s, where Get-NetTCPConnection takes seconds.
+# A listening line has a foreign address ending in :0; the state word is localized, so it is not used.
+function Get-Listeners {
+  @(netstat.exe -ano -p TCP 2>$null | ForEach-Object {
+    $f = ($_ -split '\s+') | Where-Object { $_ }
+    if ($f.Count -ge 5 -and $f[0] -eq 'TCP' -and $f[2] -match ':0$' -and $f[1] -match ':(\d+)$') {
+      [pscustomobject]@{ Port = [int]$Matches[1]; Pid = [int]$f[-1] }
+    }
+  })
+}
+
+function Get-Instances {
+  $listening = Get-Listeners
+  @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -match 'server\.mjs' } |
+    ForEach-Object {
+      $id = $_.ProcessId
+      [pscustomobject]@{
+        Pid     = $id
+        Port    = (($listening | Where-Object Pid -eq $id | Select-Object -ExpandProperty Port -Unique | Sort-Object) -join ', ')
+        Started = $_.CreationDate
+      }
+    })
+}
+
+function Get-PortOwner([int]$port) {
+  $connection = Get-Listeners | Where-Object Port -eq $port | Select-Object -First 1
+  if (-not $connection) { return $null }
+  $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($connection.Pid)" -ErrorAction SilentlyContinue
+  [pscustomobject]@{ Pid = $connection.Pid; Name = $process.Name; Command = $process.CommandLine }
+}
+
+function Get-FreePort([int]$from) {
+  $used = (Get-Listeners).Port
+  while ($used -contains $from) { $from++ }
+  $from
+}
+
+function Open-Instance([int]$port) {
+  $key = if (Test-Path $keyFile) { (Get-Content -LiteralPath $keyFile -Raw).Trim() } else { '' }
+  Start-Process $(if ($key) { "http://localhost:$port/?key=$key" } else { "http://localhost:$port/" })
+}
+
+# Numbered menu: Up/Down (or Home/End) move the highlight, Enter selects, 1-9 select directly,
+# Esc cancels (returns -1).
+function Select-Menu([string]$title, [string[]]$items) {
+  Write-Host $title -ForegroundColor Cyan
+  foreach ($item in $items) { Write-Host '' }
+  $top = [Console]::CursorTop - $items.Count
+  $width = [Math]::Max(20, [Console]::WindowWidth - 1)
+  $index = 0
+  [Console]::CursorVisible = $false
+  try {
+    while ($true) {
+      [Console]::SetCursorPosition(0, $top)
+      for ($i = 0; $i -lt $items.Count; $i++) {
+        $text = ('{0} {1}. {2}' -f $(if ($i -eq $index) { '>' } else { ' ' }), ($i + 1), $items[$i])
+        if ($text.Length -gt $width) { $text = $text.Substring(0, $width) }
+        if ($i -eq $index) { Write-Host $text.PadRight($width) -ForegroundColor Black -BackgroundColor Gray }
+        else { Write-Host $text.PadRight($width) }
+      }
+      $key = [Console]::ReadKey($true)
+      switch ($key.Key) {
+        'UpArrow'   { $index = ($index + $items.Count - 1) % $items.Count }
+        'DownArrow' { $index = ($index + 1) % $items.Count }
+        'Home'      { $index = 0 }
+        'End'       { $index = $items.Count - 1 }
+        'Enter'     { return $index }
+        'Escape'    { return -1 }
+        default {
+          $digit = [string]$key.KeyChar
+          if ($digit -match '^[1-9]$' -and [int]$digit -le $items.Count) { return [int]$digit - 1 }
+        }
+      }
+    }
+  } finally { [Console]::CursorVisible = $true }
+}
+
+
+# Node.js 24 or later
+$node = Get-Command node -ErrorAction SilentlyContinue
+if (-not $node) {
+  throw 'Node.js was not found. Install version 24 or later from https://nodejs.org/ and run this script again.'
+}
+$major = [int](($node.Version.ToString() -split '\.')[0])
+if ($major -lt 24) {
+  throw "Node.js $($node.Version) is too old. Version 24 or later is required."
+}
+
+# Dependencies
+if (-not (Test-Path node_modules) -or $WithDevTools) {
+  $flags = if ($WithDevTools) { @() } else { @('--omit=dev') }
+  Write-Host 'Installing dependencies...'
+  & npm ci @flags
+  if ($LASTEXITCODE -ne 0) { throw 'npm ci failed.' }
+}
+
+# First-run configuration: demo mode, nothing is sent to real services
+if (-not (Test-Path .env)) {
+  Copy-Item .env.example .env
+  Write-Host 'Created .env from .env.example (demo mode).'
+}
+
+if ($Live) { $env:DEMO = 'false' }
+if ($Port) { $env:PORT = "$Port" }
+
+# Resolve the port that will be used: environment first, then .env, then default
+$effective = $env:PORT
+if (-not $effective) {
+  $line = Select-String -Path .env -Pattern '^\s*PORT\s*=\s*(\d+)' | Select-Object -First 1
+  $effective = if ($line) { $line.Matches[0].Groups[1].Value } else { '3000' }
+}
+$effective = [int]$effective
+
+# Instances already running
+if ($StopExisting) {
+  foreach ($instance in Get-Instances) { Stop-Process -Id $instance.Pid -Force -ErrorAction SilentlyContinue }
+  Start-Sleep -Milliseconds 500
+}
+
+# Start menu (arrow keys). Skipped with -NoMenu or when there is no interactive terminal.
+$interactive = -not $NoMenu -and -not [Console]::IsInputRedirected
+while ($true) {
+  $instances = Get-Instances
+  $owner = Get-PortOwner $effective
+  $foreign = $owner -and ($instances.Pid -notcontains $owner.Pid)
+
+  if (-not $interactive) {
+    if ($owner) {
+      Write-Host "Port $effective is already in use (PID $($owner.Pid) $($owner.Name)). Use -StopExisting or -Port <port>." -ForegroundColor Yellow
+      exit 1
+    }
+    break
+  }
+
+  Write-Host ''
+  Write-Host 'Studio Social' -ForegroundColor Cyan
+  if ($instances) {
+    Write-Host 'Running instances:'
+    foreach ($item in $instances) {
+      Write-Host ('  PID {0}  port {1}  started {2:g}' -f $item.Pid, $(if ($item.Port) { $item.Port } else { '?' }), $item.Started)
+    }
+  } else {
+    Write-Host 'No instance is running.'
+  }
+  if ($foreign) { Write-Host "Port $effective is used by another program: PID $($owner.Pid) $($owner.Name)" -ForegroundColor Yellow }
+
+  $options = @()
+  if (-not $owner) {
+    $options += [pscustomobject]@{ Label = "Start on port $effective (settings from .env)"; Action = 'start'; Target = $null }
+    $options += [pscustomobject]@{ Label = 'Start in demo mode (simulated sends)'; Action = 'demo'; Target = $null }
+    $options += [pscustomobject]@{ Label = 'Start in real mode (real accounts and publishing)'; Action = 'live'; Target = $null }
+  }
+  foreach ($item in $instances) { $options += [pscustomobject]@{ Label = "Stop instance PID $($item.Pid) (port $($item.Port))"; Action = 'stop'; Target = $item } }
+  if ($instances.Count -gt 1) { $options += [pscustomobject]@{ Label = 'Stop all instances'; Action = 'stopall'; Target = $null } }
+  if ($instances | Where-Object Port) { $options += [pscustomobject]@{ Label = 'Open an instance in the browser'; Action = 'open'; Target = $null } }
+  $options += [pscustomobject]@{ Label = "Use another port (now $effective)"; Action = 'port'; Target = $null }
+  $options += [pscustomobject]@{ Label = 'Quit'; Action = 'quit'; Target = $null }
+
+  $picked = Select-Menu 'What do you want to do?' @($options.Label)
+  if ($picked -lt 0) { exit 0 }
+  $option = $options[$picked]
+
+  $start = $false
+  switch ($option.Action) {
+    'quit' { exit 0 }
+    'start' { $start = $true }
+    'demo' { $env:DEMO = 'true'; $start = $true }
+    'live' { $env:DEMO = 'false'; $start = $true }
+    'stop' {
+      Stop-Process -Id $option.Target.Pid -Force -ErrorAction SilentlyContinue
+      Start-Sleep -Milliseconds 500
+    }
+    'stopall' {
+      foreach ($item in $instances) { Stop-Process -Id $item.Pid -Force -ErrorAction SilentlyContinue }
+      Start-Sleep -Milliseconds 500
+    }
+    'open' {
+      $withPort = @($instances | Where-Object Port)
+      $which = if ($withPort.Count -eq 1) { 0 } else { Select-Menu 'Open which instance?' @($withPort | ForEach-Object { "PID $($_.Pid) (port $($_.Port))" }) }
+      if ($which -ge 0) { Open-Instance ([int]($withPort[$which].Port -split ',')[0]) }
+    }
+    'port' {
+      $suggested = Get-FreePort ($effective + 1)
+      $answer = Read-Host "Port [$suggested]"
+      $effective = if ($answer -match '^\d{2,5}$') { [int]$answer } else { $suggested }
+      $env:PORT = "$effective"
+    }
+  }
+  if ($start) { break }
+}
+$env:PORT = "$effective"
+
+# Open the browser on the login URL once the server has written the key and is listening
+if (-not $NoBrowser) {
+  Start-Job -ArgumentList $effective, $keyFile -ScriptBlock {
+    param($port, $keyFile)
+    for ($i = 0; $i -lt 60; $i++) {
+      Start-Sleep -Milliseconds 500
+      try {
+        $client = [System.Net.Sockets.TcpClient]::new('127.0.0.1', [int]$port)
+        $client.Close()
+        if (Test-Path $keyFile) {
+          $key = (Get-Content -LiteralPath $keyFile -Raw).Trim()
+          Start-Process "http://localhost:$port/?key=$key"
+          return
+        }
+      } catch { }
+    }
+  } | Out-Null
+}
+
+Write-Host "Starting Studio Social on http://localhost:$effective (Ctrl+C to stop)..."
+try {
+  & npm start
+} finally {
+  Get-Job | Stop-Job -ErrorAction SilentlyContinue
+  Get-Job | Remove-Job -Force -ErrorAction SilentlyContinue
+}
